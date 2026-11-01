@@ -79,12 +79,13 @@ async function accept(){
 function broadcast(s){if(!st.host)return;for(const p of st.peers.values())send(p.ch,{kind:"state",state:s})}
 function flight(from,to,label){if(!st.host)return;for(const p of st.peers.values())send(p.ch,{kind:"flight",from,to,label})}
 function intercept(a,data){
- if(!st.guest||!st.connected)return false;
+ if(!st.guest)return false;
  const local=["select-site","select-plane","tab","view","inspect","board-task","board-rfi","board-cargo","board-cards","board-layer","board-zoom","board-reset","board-focus","rules","help","guide","menu","aar","save","sound","invite","close","replay","board-workstation"];
  if(local.includes(a))return false;
+ if(!st.connected){status("Not connected to the host. Complete the invitation/answer exchange before submitting operations.");return true}
  const p=st.peers.values().next().value;
+ status("Requesting host resolution: "+a+"…");
  send(p?.ch,{kind:"action",action:a,data});
- status("Sent "+a+" to the host. Waiting for instructor/host resolution.");
  return true;
 }
 window.OPS_COPLAY={open,broadcast,flight,intercept,isHost:()=>st.host,isGuest:()=>st.guest,isConnected:()=>st.connected};
