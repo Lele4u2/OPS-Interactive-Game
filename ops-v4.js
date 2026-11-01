@@ -65,7 +65,7 @@ function game(mode,diff){
 }
 function log(msg,who="OPS"){if(!S)return;S.log.unshift({turn:S.turn,who,msg,time:new Date().toLocaleTimeString()});S.log=S.log.slice(0,120)}
 function notify(msg){const old=$("toastpop");if(old)old.remove();const d=document.createElement("div");d.id="toastpop";d.className="toast";d.textContent=msg;document.body.appendChild(d);clearTimeout(toastTimer);toastTimer=setTimeout(()=>d.remove(),3800)}
-function save(show=false){if(!S)return;try{localStorage.setItem(KEY,JSON.stringify(S));if(show)notify("Mission saved on this device.")}catch(e){notify("Browser save unavailable.")}}
+function save(show=false){if(!S)return;try{localStorage.setItem(KEY,JSON.stringify(S));if(show)notify("Mission saved on this device.")}catch(e){notify("Browser save unavailable.")}window.OPS_COPLAY?.broadcast?.(S)}
 function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];S.sites.forEach(x=>x.shortageDays??=0);selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
 function start(mode,diff){
  S=game(mode,diff);modal="";selected=0;activePlane="C130-A";tab="site";view="board";cargo={people:1,forklift:1};
@@ -165,7 +165,7 @@ function animate(from,to,done,label){
  if(moving)return;moving=true;
  const onPhysical=view==="board"&&(!S.inspect||S.inspect==="MOB");
  const d1=onPhysical?boardLocation(from):point(from),d2=onPhysical?boardLocation(to):point(to);
- S.flightFX={from,to,label};render();
+ S.flightFX={from,to,label};render();window.OPS_COPLAY?.flight?.(from,to,label);
  const marker=$("moving-plane");const path=$("moving-route");const btn=$("flight-live-label");
  const flightBanner=$("board-flight-status");if(flightBanner){flightBanner.textContent="✈ "+label;flightBanner.classList.add("active")}
  if(btn)btn.textContent=label;
@@ -317,7 +317,7 @@ function sound(){S.sound=!S.sound;save();render();notify(S.sound?"Sound enabled"
 function shortSite(s){return s.tasks.length+"/16 tasks · "+s.rfis.length+"/10 RFIs"}
 function smallStatus(p){return p.status==="READY"?"READY @ MOB":p.status+" @ "+(p.at==="MOB"?"MOB":p.at==="LOST"?"LOST":"FOS "+p.at)}
 function renderHeader(){
- return '<div class="topbar"><a href="index.html" class="brand" title="Mission lobby">OPS <b>/// PACIFIC SHIELD</b></a><div class="topmiddle"><div class="hudstat"><span class="micro">TURN</span><strong>'+S.turn+' / 12</strong></div><div class="hudstat"><span class="micro">MISSION POINTS</span><strong class="gold">'+S.mp+'</strong></div><div class="hudstat"><span class="micro">MODE</span><strong>'+h(S.mode).toUpperCase()+'</strong></div></div><div class="righttop"><button class="smallbtn" data-action="sound">'+(S.sound?"🔊 SOUND":"🔇 SOUND")+'</button><button class="smallbtn" data-action="save">SAVE</button><button class="smallbtn" data-action="rules">RULES</button><button class="smallbtn" data-action="menu">MENU</button></div></div>';
+ return '<div class="topbar"><a href="index.html" class="brand" title="Mission lobby">OPS <b>/// PACIFIC SHIELD</b></a><div class="topmiddle"><div class="hudstat"><span class="micro">TURN</span><strong>'+S.turn+' / 12</strong></div><div class="hudstat"><span class="micro">MISSION POINTS</span><strong class="gold">'+S.mp+'</strong></div><div class="hudstat"><span class="micro">MODE</span><strong>'+h(S.mode).toUpperCase()+'</strong></div></div><div class="righttop"><button class="smallbtn" data-action="invite">👥 INVITE TEAM</button><button class="smallbtn" data-action="sound">'+(S.sound?"🔊 SOUND":"🔇 SOUND")+'</button><button class="smallbtn" data-action="save">SAVE</button><button class="smallbtn" data-action="rules">RULES</button><button class="smallbtn" data-action="menu">MENU</button></div></div>';
 }
 function renderMap(){
  let grid="",land="";
@@ -583,6 +583,7 @@ function action(e){
  const target=e.target.closest("[data-action]");if(!target||moving)return;
  const a=target.dataset.action;
  const i=Number(target.dataset.index),id=target.dataset.id;
+ if(window.OPS_COPLAY?.intercept?.(a,{...target.dataset,clientSite:selected,clientPlane:activePlane}))return;
  if(a==="start"){const m=target.dataset.mode,d=m==="computer"?($("difficult")?.value||target.dataset.diff||"standard"):"cadet";start(m,d)}
  else if(a==="resume")loadSaved();
  else if(a==="close"){modal="";render()}
@@ -647,6 +648,7 @@ function action(e){
  else if(a==="menu"){modal="menu";render()}
  else if(a==="new-game")resetGame();
  else if(a==="save")save(true);
+ else if(a==="invite"){if(window.OPS_COPLAY?.open)window.OPS_COPLAY.open();else notify("Team connection is still loading. Try again.")}
  else if(a==="sound"){sound()}
  else if(a==="difficulty"){S.diff=id;log("Computer challenge difficulty changed to "+id,"OPS");save();render();notify("Opponent difficulty: "+id)}
  else if(a==="guide"){const t=tutorial();if(t){view="board";S.inspect="MOB";tab=t.step[3];if(t.index>=8)tab=t.step[3];render();const btn=document.querySelector('[data-action="'+({map:"select-site",site:"initial-rfi",flight:"plan",events:"cards"}[tab]||"select-site")+'"]');btn?.classList.add("flash");btn?.scrollIntoView({block:"center",behavior:"smooth"})}else{tab=site().people<5?"flight":"site";view="board";render()}}
@@ -658,5 +660,25 @@ const requested=new URLSearchParams(location.search).get("mode");
 let shouldAutoStart=["tutorial","computer","sandbox"].includes(requested);
 if(shouldAutoStart){start(requested,requested==="computer"?"standard":"cadet");if(requested==="tutorial")tab="map"}
 else{S=null;modal="launch";render()}
-window.OPS_DEBUG={getState:()=>JSON.parse(JSON.stringify(S)),requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render};
+window.OPS_DEBUG={
+ getState:()=>S?JSON.parse(JSON.stringify(S)):null,requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render,
+ applyRemote:state=>{
+  if(!state||state.version!==4||!Array.isArray(state.sites)||!Array.isArray(state.fleet))return;
+  const previousSite=selected,previousPlane=activePlane;
+  S=JSON.parse(JSON.stringify(state));S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];
+  selected=Math.min(S.sites.length-1,previousSite);activePlane=S.fleet.some(p=>p.id===previousPlane)?previousPlane:S.fleet[0]?.id;
+  modal="";view="board";tab="site";render();
+ },
+ invoke:(name,data={})=>{
+  if(!S)return;
+  if(data.clientSite!==undefined){const n=Number(data.clientSite);if(S.sites[n]){selected=n;S.site=n}}
+  if(data.clientPlane&&S.fleet.some(p=>p.id===data.clientPlane)){activePlane=data.clientPlane;S.selectedPlane=activePlane}
+  action({target:{closest:()=>({dataset:{...data,action:name}})}});
+ },
+ showRemoteFlight:(from,to,label)=>{
+  if(!S||moving)return;
+  view="board";S.inspect="MOB";
+  animate(from,to,()=>{},label);
+ }
+};
 })();
