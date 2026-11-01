@@ -767,6 +767,54 @@ function resolveCoordination(id,approved){
  save();render();
 }
 
+function renderC2Dashboard(){
+ ensureCommand();
+ const a=assetSummary(),limits=missionLimfacs(),goals=objectiveStatus(),tab=S.dashboardTab;
+ const critical=limits.filter(x=>x.severity==="HIGH").length;
+ let out='<div class="panel c2-panel" id="c2-dashboard"><div class="c2-heading"><div><div class="micro">MISSION CONTROL / LIVE COMMON OPERATING PICTURE</div><h2>COMMAND READINESS</h2><p>All numbers update when aircraft move, cargo unloads, tasks finish, or the opponent changes mission conditions.</p></div><div class="c2-light '+(critical?"amber":"green")+'"><span></span>'+(critical?"MISSION AT RISK":"OPERATIONS STABLE")+'</div></div>';
+ out+='<div class="c2-overview">'+[
+ ["✈","AIRCRAFT READY",a.ready+" / "+a.total,"blue"],
+ ["📦","MOB CARGO",CARGO.reduce((v,c)=>v+a.inventory[c.id].mob,0)+" TOKENS","gold"],
+ ["🏗","FOS STAFFED",S.sites.filter(f=>f.people>=5).length+" / "+S.sites.length,"mint"],
+ ["⚠","CRITICAL LIMFACS",critical,"red"],
+ ["★","MISSION POINTS",S.mp,"purple"]
+ ].map(v=>'<div class="c2-kpi '+v[3]+'"><span>'+v[0]+'</span><div><small>'+v[1]+'</small><strong>'+v[2]+'</strong></div></div>').join("")+'</div>';
+ out+='<div class="c2-tabs">'+[
+ ["overview","MISSION STATUS"],["assets","ALL ASSETS"],["roles","PERSONNEL / DUTIES"],["coord","COORDINATION"],["limfac","LIMFAC WATCH"]
+ ].map(x=>'<button class="'+(tab===x[0]?"active":"")+'" data-action="c2-tab" data-id="'+x[0]+'">'+x[1]+'</button>').join("")+'</div>';
+ if(tab==="overview"){
+  out+='<div class="c2-section-title"><h3>MISSION OBJECTIVE TRACKER</h3><span class="micro">Training objectives, not official grading criteria</span></div><div class="c2-progress-list">'+goals.map(g=>{
+   const pct=Math.min(100,g.done/g.target*100);
+   return '<div class="c2-goal"><div class="c2-goal-top"><b>'+h(g.name)+'</b><span>'+g.done+' / '+g.target+'</span></div><div class="progress"><span style="width:'+pct+'%"></span></div><small>'+h(g.meaning)+'</small></div>';
+  }).join("")+'</div>';
+  out+='<div class="c2-readiness"><div class="c2-stat"><b>MISSION EFFECTS</b><strong>'+S.strikes.length+' strikes</strong><small>Fictional training outcomes</small></div><div class="c2-stat"><b>SUCCESSFUL AIRLIFT</b><strong>'+S.plans.filter(x=>x.status==="DELIVERED").length+' deliveries</strong><small>Resources unloaded at FOS</small></div><div class="c2-stat"><b>ORDERS COMPLETED</b><strong>'+(S.command?.completed||0)+'</strong><small>Returned or held as directed</small></div></div>';
+  if(limits.length)out+='<div class="c2-callout"><b>TOP MISSION LIMITING FACTOR</b><p>'+h(limits[0].scope)+': '+h(limits[0].problem)+'. '+h(limits[0].fix)+'</p><button data-action="c2-tab" data-id="limfac">REVIEW '+limits.length+' LIMFACS →</button></div>';
+ }else if(tab==="assets"){
+  out+='<div class="c2-section-title"><h3>RESOURCE ACCOUNTABILITY</h3><span class="micro">Practice inventory; official loadout workbook remains authoritative</span></div><div class="c2-table-wrap"><table class="c2-table"><thead><tr><th>ASSET</th><th>MOB</th><th>AT ALL FOS</th><th>ON AIRCRAFT</th><th>ACCOUNTED TOTAL</th></tr></thead><tbody>'+CARGO.map(x=>{
+   const v=a.inventory[x.id];
+   return '<tr><td><b>'+x.icon+' '+h(x.name)+'</b><small>'+h(v.unit)+'</small></td><td>'+v.mob+'</td><td>'+v.fos+'</td><td>'+v.inFlightOrLoaded+'</td><td><b>'+v.total+'</b></td></tr>';
+  }).join("")+'</tbody></table></div>';
+  out+='<div class="c2-section-title"><h3>AIRCRAFT FLEET / EXACT LOCATION</h3><span class="micro">Click a plane to command it</span></div><div class="c2-aircraft-grid">'+a.aircraft.map(p=>'<button data-action="select-plane" data-plane="'+p.id+'" class="c2-aircraft"><span>✈</span><div><b>'+h(p.id)+' / '+h(p.name)+'</b><small>'+h(p.status)+' · '+h(String(p.location))+' · LOAD '+p.load+'/'+p.capacity+'</small></div></button>').join("")+'</div>';
+  out+='<div class="c2-section-title"><h3>STOCK POSITION / EACH FOS</h3></div><div class="c2-site-grid">'+S.sites.map((f,i)=>'<button data-action="select-site" data-index="'+i+'" class="c2-site"><b>'+h(f.name)+'</b><span>👥 '+f.people+' · 🚜 '+f.forklift+' · 🍱 '+f.food+' · ⛽ '+f.fuel+'</span><small>AMMO '+f.ammo+' · MISSILE '+f.missile+' · TASKS '+f.tasks.length+'/16</small></button>').join("")+'</div>';
+ }else if(tab==="roles"){
+  out+='<p class="c2-advisory">These are role responsibility guides for the OPS practice simulator. Your class instructor and exercise orders remain authoritative for actual assigned duties.</p>';
+  out+='<div class="c2-role-grid">'+C2_ROLES.map(r=>{
+   const open=r.id==="COMMAND"?"cmd":r.id==="MOB"?"site":r.id==="CAOC"?"flight":"support";
+   return '<div class="c2-role '+r.color+'"><div class="c2-role-icon">'+r.icon+'</div><div><h3>'+h(r.title)+'</h3><p>'+h(r.does)+'</p><div class="c2-coordline"><b>COORDINATES WITH</b> '+h(r.with)+'</div><button data-action="c2-role-open" data-id="'+r.id+'">OPEN '+(r.id==="COMMAND"?"ORDER DESK":r.id==="GM"?"INSTRUCTOR":r.id)+" CONTROLS</button></div></div>";
+  }).join("")+'</div>';
+ }else if(tab==="coord"){
+  out+='<p class="c2-advisory">Send practice coordination requests. With the computer crew active, the simulated counterpart responds. On a live multiplayer session, use role assignments and your instructor to coordinate real exercise decisions.</p>';
+  out+='<div class="c2-coord-grid">'+C2_REQUESTS.map(x=>'<div class="c2-request"><strong>'+h(x.from)+' <span>↔</span> '+h(x.to)+'</strong><h4>'+h(x.title)+'</h4><p>'+h(x.description)+'</p><button class="primary" data-action="c2-request" data-id="'+x.id+'">REQUEST COORDINATION</button></div>').join("")+'</div>';
+  out+='<div class="c2-section-title"><h3>OPEN & ANSWERED COORDINATION</h3></div>';
+  out+='<div class="c2-coord-log">'+(S.coordination.length?S.coordination.slice(0,15).map(x=>'<div class="c2-coord-item"><div><b>#'+x.id+' · '+h(x.title)+'</b><small>'+h(x.from)+' → '+h(x.to)+' · T'+x.turn+' · '+h(x.status)+'</small><p>'+h(x.response)+'</p></div>'+(x.status==="PENDING"?'<div class="c2-decision"><button data-action="c2-answer" data-id="'+x.id+'" data-yes="1">ACKNOWLEDGE</button><button data-action="c2-answer" data-id="'+x.id+'" data-yes="0">DECLINE</button></div>':'')+'</div>').join(""):'<p>No pending requests. Select one above to begin coordination.</p>')+'</div>';
+ }else{
+  out+='<div class="c2-section-title"><h3>LIMITING FACTORS / IMPACT / CORRECTIVE ACTION</h3><span class="micro">'+limits.length+' findings · HIGH '+critical+'</span></div>';
+  out+='<p class="c2-advisory">LIMFAC = something preventing or restricting mission completion. Each alert below is computed from current gameplay assets, readiness and task status.</p>';
+  out+='<div class="c2-limfac-list">'+(limits.length?limits.map(x=>'<div class="c2-limfac '+x.severity.toLowerCase()+'"><div><span class="c2-severity">'+x.severity+'</span><b>'+h(x.scope)+' — '+h(x.problem)+'</b></div><p><strong>IMPACT:</strong> '+h(x.impact)+'</p><p><strong>YOUR NEXT DECISION:</strong> '+h(x.fix)+'</p><button data-action="c2-go" data-id="'+x.action+'">GO TO ACTION →</button></div>').join(""):'<div class="status success">No current limiting factors detected by the practice rule engine.</div>')+'</div>';
+ }
+ out+='</div>';
+ return out;
+}
 function renderCommander(){
  ensureCommand();const c=S.command;
  const queued=c.orders.filter(x=>!["CANCELLED","COMPLETE"].includes(x.status)),alerts=c.alerts.slice(0,2);
@@ -806,7 +854,7 @@ function renderImpact(){
  rows.map(x=>'<div class="impact-row '+(x.level==="success"?"success":"warning")+'"><b>TURN '+x.turn+' · '+(x.level==="success"?"MISSION PROGRESS":"ACTION REQUIRED")+'</b><p>'+h(x.text)+'</p></div>').join("")+'</div>';
 }
 function renderCenter(){
- return '<main class="column center">'+renderCommander()+renderCoach()+'<div class="panel"><div class="panel-head"><div><div class="micro">ORIGINAL BOARD / LIVE GAME</div><h2>THE ORIGINAL OPS BOARD — PLAYABLE</h2></div><span class="chip '+(moving?"bad":"ok")+'">'+(moving?"AIRCRAFT IN FLIGHT":"TACTICAL OVERVIEW")+'</span></div><div class="tabs" style="margin-bottom:10px"><button data-action="view" data-id="map" class="'+(view==="map"?"active":"")+'">MISSION MAP</button><button data-action="view" data-id="board" class="'+(view==="board"?"active":"")+'">PLAY ORIGINAL BOARD</button><button data-action="view" data-id="timeline" class="'+(view==="timeline"?"active":"")+'">MISSION TRACK</button></div>'+(view==="map"?renderMap():view==="board"?boardInspector():renderTimeline())+'</div><div class="panel"><div class="panel-head"><div><div class="micro">SITE DEVELOPMENT</div><h3>FOUR FORWARD OPERATING SITES</h3></div></div><div class="site-actions">'+S.sites.map((s,i)=>'<button class="'+(selected===i?"primary":"")+'" data-action="select-site" data-index="'+i+'">'+s.name+' / '+s.country+'<br><span style="font-size:10px;font-weight:500">'+shortSite(s)+'</span></button>').join("")+'</div></div><div class="panel"><div class="panel-head"><div><div class="micro">LIVE OPERATIONS NET</div><h3>COMMAND LOG</h3></div><button class="flat" data-action="aar">VIEW AAR ↗</button></div><div class="log">'+S.log.slice(0,16).map(x=>'<div class="log-entry"><b>T'+x.turn+' / '+h(x.who)+'</b> · '+h(x.msg)+'</div>').join("")+'</div></div>'+renderImpact()+'</main>';
+ return '<main class="column center">'+renderC2Dashboard()+renderCommander()+renderCoach()+'<div class="panel"><div class="panel-head"><div><div class="micro">ORIGINAL BOARD / LIVE GAME</div><h2>THE ORIGINAL OPS BOARD — PLAYABLE</h2></div><span class="chip '+(moving?"bad":"ok")+'">'+(moving?"AIRCRAFT IN FLIGHT":"TACTICAL OVERVIEW")+'</span></div><div class="tabs" style="margin-bottom:10px"><button data-action="view" data-id="map" class="'+(view==="map"?"active":"")+'">MISSION MAP</button><button data-action="view" data-id="board" class="'+(view==="board"?"active":"")+'">PLAY ORIGINAL BOARD</button><button data-action="view" data-id="timeline" class="'+(view==="timeline"?"active":"")+'">MISSION TRACK</button></div>'+(view==="map"?renderMap():view==="board"?boardInspector():renderTimeline())+'</div><div class="panel"><div class="panel-head"><div><div class="micro">SITE DEVELOPMENT</div><h3>FOUR FORWARD OPERATING SITES</h3></div></div><div class="site-actions">'+S.sites.map((s,i)=>'<button class="'+(selected===i?"primary":"")+'" data-action="select-site" data-index="'+i+'">'+s.name+' / '+s.country+'<br><span style="font-size:10px;font-weight:500">'+shortSite(s)+'</span></button>').join("")+'</div></div><div class="panel"><div class="panel-head"><div><div class="micro">LIVE OPERATIONS NET</div><h3>COMMAND LOG</h3></div><button class="flat" data-action="aar">VIEW AAR ↗</button></div><div class="log">'+S.log.slice(0,16).map(x=>'<div class="log-entry"><b>T'+x.turn+' / '+h(x.who)+'</b> · '+h(x.msg)+'</div>').join("")+'</div></div>'+renderImpact()+'</main>';
 }
 function renderTimeline(){
  return '<div class="stack">'+S.plans.slice().reverse().map(p=>'<div class="missioncard"><div class="micro">'+h(p.id)+' · T'+p.turn+'</div><strong>'+h(p.aircraft)+' → FOS '+p.site+'</strong><p>MISSION STATUS: '+p.status+' · '+cargoWeight(p.load)+' loaded counters</p></div>').join("")+'<div class="callout">Aircraft must return after a subsequent turn. Missions are saved between visits.</div></div>';
