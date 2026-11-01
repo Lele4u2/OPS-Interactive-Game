@@ -46,7 +46,7 @@ const RISKS=[
  {name:"ACCESS VERIFIED",body:"No further restriction from this risk card.",type:"clear"}
 ];
 const RFI_NAMES=R.RFIs || ["Fire rescue","Mobility","Ramp","ATC","Equipment","Beddown","Fuel","Security","Host nation","Medical"];
-let S=null,modal="launch",tab="map",selected=0,activePlane="C130-A",cargo={},toastTimer=null,moving=false,view="board",audioCtx=null;
+let S=null,modal="launch",tab="map",selected=0,activePlane="C130-A",cargo={},toastTimer=null,moving=false,view="board",audioCtx=null,commandTimer=null,commandWorking=false;
 function beep(type){if(!S||!S.sound)return;try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;audioCtx=audioCtx||new A();const o=audioCtx.createOscillator(),v=audioCtx.createGain();o.type=type==="warn"?"triangle":"sine";o.frequency.setValueAtTime(type==="warn"?270:type==="fly"?420:700,audioCtx.currentTime);if(type==="fly")o.frequency.exponentialRampToValueAtTime(110,audioCtx.currentTime+.32);v.gain.setValueAtTime(.045,audioCtx.currentTime);v.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.35);o.connect(v);v.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.38)}catch(e){}}
 const root=$("app");
 const h=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -66,18 +66,19 @@ function game(mode,diff){
   ],
   plans:[],events:[],effects:[],log:[],impact:[],strikes:[],targetId:"SIM-A",cardChoice:{event:-1,risk:-1},flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
   ratings:{operations:0,decisions:0,logistics:0},medicalBoards:Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8})),medicalBoard:0,satellites:[{id:"M1",name:"ISR Training Satellite",usedTurn:0},{id:"M2",name:"SATCOM Training Satellite",usedTurn:0},{id:"L1",name:"Space Warning Satellite",usedTurn:0}],selectedSatellite:"M1",support:{space:0,medical:0,requested:{}},sound:false,history:[],
+  command:{auto:mode==="computer",autoTurns:false,pickPlane:"C130-A",pickSite:1,priority:"BUILD",returnHome:true,orders:[],completed:0,alerts:[]},
   objective:{"name":"Activate and sustain forward operating sites","target":25}
  };
 }
 function log(msg,who="OPS"){if(!S)return;S.log.unshift({turn:S.turn,who,msg,time:new Date().toLocaleTimeString()});S.log=S.log.slice(0,120)}
 function notify(msg){const old=$("toastpop");if(old)old.remove();const d=document.createElement("div");d.id="toastpop";d.className="toast";d.textContent=msg;document.body.appendChild(d);clearTimeout(toastTimer);toastTimer=setTimeout(()=>d.remove(),3800)}
 function save(show=false){if(!S)return;try{localStorage.setItem(KEY,JSON.stringify(S));if(show)notify("Mission saved on this device.")}catch(e){notify("Browser save unavailable.")}window.OPS_COPLAY?.broadcast?.(S)}
-function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];S.medicalBoards??=Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8}));S.medicalBoard??=0;S.satellites??=[{id:"M1",name:"ISR Training Satellite",usedTurn:0},{id:"M2",name:"SATCOM Training Satellite",usedTurn:0},{id:"L1",name:"Space Warning Satellite",usedTurn:0}];S.selectedSatellite??="M1";S.sites.forEach(x=>x.shortageDays??=0);selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
+function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;ensureCommand();S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];S.medicalBoards??=Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8}));S.medicalBoard??=0;S.satellites??=[{id:"M1",name:"ISR Training Satellite",usedTurn:0},{id:"M2",name:"SATCOM Training Satellite",usedTurn:0},{id:"L1",name:"Space Warning Satellite",usedTurn:0}];S.selectedSatellite??="M1";S.sites.forEach(x=>x.shortageDays??=0);selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render();startCommandClock()}catch(e){notify("No V4 mission save found on this browser.")}}
 function start(mode,diff){
  S=game(mode,diff);modal="";selected=0;activePlane="C130-A";tab="site";view="board";cargo={people:1,forklift:1};
  log("Mission initialized: "+mode.toUpperCase()+" / "+diff.toUpperCase()+".","SIM GM");
  log("The simulated GM handles computer adjudication. Training load capacities and scenario cards are not official OPS data.","SIM GM");
- save();render();
+ save();render();startCommandClock();
 }
 function site(){return S.sites[selected]}
 function plane(){return S.fleet.find(x=>x.id===activePlane)}
@@ -312,7 +313,7 @@ function endTurn(){
  if(S.support&&S.support.medical>=S.turn&&S.dp>0){const recovered=Math.min(5,S.dp);S.dp-=recovered;log("MEDCOM simulated response prevented "+recovered+" Demoralization Points.","SIM MEDCOM");S.support.medical=0}
  if(S.dp>=5){const deduct=Math.floor(S.dp/5);const already=Math.floor((S.appliedDP||0)/5);const delta=deduct-already;if(delta>0){S.mp-=delta;log("Demoralization adjustment: -"+delta+" MP (1 per 5 accumulated DP).","SCORE")}S.appliedDP=S.dp}
  S.stock.food+=0;S.phase="PLANNING";
- if(S.turn>12){S.finished=true;modal="aar"}
+ if(S.turn>12){S.finished=true;if(S.command)S.command.auto=false;modal="aar"}
  if(S.sites.every(x=>x.people===0)&&S.turn>=3)S.impact.unshift({turn:S.turn,level:"warning",text:"No forward operating site is staffed. Deploy a team to start FOS tasks; otherwise the mission cannot develop."});
  if(S.plans.some(x=>x.status==="APPROVED"))S.impact.unshift({turn:S.turn,level:"warning",text:"An approved airlift chalk is still waiting on the ramp. Select the aircraft and click FLY MISSION."});
  S.impact=S.impact.slice(0,32);
@@ -744,11 +745,11 @@ let shouldAutoStart=["tutorial","computer","sandbox"].includes(requested);
 if(shouldAutoStart){start(requested,requested==="computer"?"standard":"cadet");if(requested==="tutorial")tab="map"}
 else{S=null;modal="launch";render()}
 window.OPS_DEBUG={
- getState:()=>S?JSON.parse(JSON.stringify(S)):null,requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render,
+ getState:()=>S?JSON.parse(JSON.stringify(S)):null,requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render,issueOrder,commandPulse,recommendOrder,
  applyRemote:state=>{
   if(!state||state.version!==4||!Array.isArray(state.sites)||!Array.isArray(state.fleet))return;
   const previousSite=selected,previousPlane=activePlane;
-  S=JSON.parse(JSON.stringify(state));S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];
+  S=JSON.parse(JSON.stringify(state));ensureCommand();S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];
   selected=Math.min(S.sites.length-1,previousSite);activePlane=S.fleet.some(p=>p.id===previousPlane)?previousPlane:S.fleet[0]?.id;
   modal="";view="board";tab="site";render();
  },
