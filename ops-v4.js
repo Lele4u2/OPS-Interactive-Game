@@ -124,6 +124,7 @@ function issueOrder(){
  if(c.orders.filter(x=>x.aircraft===pl.id&&!["COMPLETE","CANCELLED"].includes(x.status)).length>=4)return notify("This aircraft already has four pending legs. Execute or cancel an order first.");
  const order={seq:Math.max(0,...c.orders.map(x=>x.seq))+1,aircraft:pl.id,site:destination.id,priority:c.priority,returnHome:c.returnHome,status:"QUEUED",createdTurn:S.turn,departedTurn:null,completedTurn:null,planId:null};
  c.orders.push(order);log("COMMANDER ORDER "+order.seq+": "+pl.id+" → "+destination.name+", "+c.priority+" priority, "+(c.returnHome?"return MOB":"hold at FOS")+".","COMMANDER");
+ order.coordIds=[requestCoordination("AIRLIFT"),requestCoordination("FOS")];
  S.training+=1;tab="flight";view="map";save();render();
  if(c.auto)queueCommandSoon();
 }
@@ -161,6 +162,14 @@ function crewMakePlan(order){
  if(!p||!s){order.status="HOLD";crewAlert("Invalid aircraft or site in Order "+order.seq);return false}
  if(p.status!=="READY"||p.at!=="MOB")return false;
  if(s.blockedUntil>S.turn||!s.access){order.status="HOLD";if(order.lastAlertTurn!==S.turn){crewAlert("Order "+order.seq+" awaiting site access at "+s.name+". Consider rerouting.");order.lastAlertTurn=S.turn}return false}
+ if(order.coordIds?.length){
+   const reviewed=order.coordIds.map(id=>S.coordination.find(x=>x.id===id));
+   if(reviewed.some(x=>!x||!["ACKNOWLEDGED","CONDITIONAL"].includes(x.status))){
+     order.status="HOLD";
+     if(order.lastAlertTurn!==S.turn){crewAlert("Order "+order.seq+" waiting for CAOC and FOS reception coordination. Open the COORDINATION tab.");order.lastAlertTurn=S.turn;}
+     return false;
+   }
+ }
  const load=crewLoad(order,p,s),total=cargoWeight(load);
  if(!total){order.status="HOLD";if(order.lastAlertTurn!==S.turn){crewAlert("Order "+order.seq+" cannot load "+order.priority+" cargo at MOB. Resupply or change the priority.");order.lastAlertTurn=S.turn}return false}
  for(const [key,count] of Object.entries(load))S.stock[key]-=count;
@@ -751,7 +760,8 @@ function requestCoordination(type){
  S.coordination.unshift(item);
  log(t.from+" requested "+t.title+" from "+t.to+".","SIM COORDINATION");
  save();render();
- if(S.command?.auto)setTimeout(()=>{if(S?.coordination?.some(x=>x.id===item.id&&x.status==="PENDING"))resolveCoordination(item.id,true)},600);
+ if(S.command?.auto&&!window.OPS_COPLAY?.isConnected?.())resolveCoordination(item.id,true);
+ return item.id;
 }
 function resolveCoordination(id,approved){
  const a=S?.coordination?.find(x=>x.id===id);if(!a||a.status!=="PENDING")return;
