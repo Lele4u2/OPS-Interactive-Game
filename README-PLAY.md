@@ -62,7 +62,7 @@ The original MOB board is now the default view. Click original airfield sections
 MEDCOM includes sixteen named task markers, simulated patient arrivals, triage and treatment. CSpOC includes symbolic moving training satellites and support windows. These additional medical, space, OPFOR and strike mechanics are practice-only when not validated against the original instructor guide.
 
 ### One asset still missing
-The exact original image MEDCOM MOB x4.png is not yet present in this repository. Upload it to the root of main using GitHub -> Add file -> Upload files -> Commit changes. The live controls work in fallback mode until the image is uploaded. CAOC's image is linked from the user's older repository.
+The original MEDCOM MOB x4.png image is now present in the current repository. CAOC's original image is still linked from the older Operation-Pacific-Shield-Interactive-Simulator repository; adding CAOC Board.png to this repo root would remove that external dependency.
 
 ### Invite a teammate
 1. Start a game on the host browser and click INVITE TEAM.
