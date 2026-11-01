@@ -215,8 +215,20 @@
 </div>
 
 <div class="toast hidden" id="toast"></div>
+<script>
+window.addEventListener("error",function(e){
+ const box=document.getElementById("toast");
+ if(box){box.textContent="Startup issue: "+(e.message||"Unknown script error")+" — refresh this page.";box.classList.remove("hidden");}
+});
+window.addEventListener("load",function(){
+ if(!window.OPS_RULES || typeof window.start !== "function"){
+  const box=document.getElementById("toast");
+  if(box){box.textContent="Game scripts failed to load. Refresh the page, then try Enter OPS again.";box.classList.remove("hidden");}
+ }
+});
+</script>
 
-<script src="rules.js"></script>
-<script src="game.js"></script>
+<script src="rules.js?v=20261101-2"></script>
+<script src="game.js?v=20261101-2"></script>
 </body>
 </html>
