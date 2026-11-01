@@ -295,7 +295,27 @@ function boardInspector(){
  const boardOptions=[["MOB","MOB Board X4.png"],["SPACE","CSPOC Board.png"],["MEDCOM","MEDCOM MOB x4.png"],["CAOC",null],["LOAD","MEDCOM C-130, C-17 and C-5 Loadout Board.png"]];
  const i=S.inspect||"MOB",item=boardOptions.find(x=>x[0]===i)||boardOptions[0];
  let out='<div class="tabs" style="margin:0 0 10px">'+boardOptions.map(x=>'<button class="'+(i===x[0]?"active":"")+'" data-action="inspect" data-id="'+x[0]+'">'+x[0]+'</button>').join("")+'</div>';
- out+='<div class="board-image">'+(item[1]?'<img src="'+encodeURI(item[1])+'" alt="'+item[0]+' source board" onerror="this.style.display=\'none\'">':'<div class="callout"><h3>CAOC Command Workstation</h3><p>The original CAOC board image is not in this repository. Use the live map, airlift planner, and CAOC mission decisions.</p></div>')+'<div class="board-overlay">'+S.sites.map((s,j)=>'<button style="grid-row:1;grid-column:'+(j+1)+'" data-action="select-site" data-index="'+j+'">'+s.name+'<br>'+s.tasks.length+' TASKS</button>').join("")+S.fleet.map((p,j)=>'<button style="grid-row:2;grid-column:'+(j+1)+'" data-action="select-plane" data-plane="'+p.id+'">✈ '+p.id+'</button>').join("")+'</div></div>';
+ out+='<div class="board-image" style="position:relative">'+(item[1]?'<img src="'+encodeURI(item[1])+'" alt="'+item[0]+' source board" onerror="this.style.display=\'none\'">':'<div class="callout"><h3>CAOC Command Workstation</h3><p>The original CAOC board image is not in this repository. Use the live map, airlift planner, and CAOC mission decisions.</p></div>');
+ if(i==="MOB"){
+   const spots=[
+     [20.1,66.2],[27.5,66.2],[20.1,74.4],[27.5,74.4],
+     [35.3,66.2],[41.8,66.2],[35.3,74.4],[41.8,74.4],
+     [20.1,84.1],[27.5,84.1],[20.1,91.4],[27.5,91.4],
+     [35.3,84.1],[41.8,84.1],[35.3,91.4],[41.8,91.4]
+   ];
+   out+='<div class="board-click-layer">';
+   spots.forEach((xy,n)=>{
+     const done=site().tasks.includes(n);
+     out+='<button class="board-task-pin '+(done?"complete":"")+'" style="left:'+xy[0]+'%;top:'+xy[1]+'%" data-action="task" data-index="'+n+'" title="Task '+(n+1)+': '+h(R.tasks[n])+'">'+(done?"✓":n+1)+'</button>';
+   });
+   // RFI assessment hotspot and currently selected forward site.
+   out+='<button class="board-label-pin" style="left:12%;top:66%" data-action="initial-rfi">REQUEST 5 RFIs</button>';
+   out+='<button class="board-label-pin" style="left:48%;top:54%" data-action="select-site" data-index="'+selected+'">'+site().name+' ACTIVE</button>';
+   out+='</div>';
+ }else{
+   out+='<div class="board-click-layer"><button class="board-label-pin" style="left:50%;top:18%" data-action="tab" data-id="'+(i==="SPACE"||i==="MEDCOM"?"support":"flight")+'">OPEN LIVE '+i+' CONTROLS</button></div>';
+ }
+ out+='</div><div class="callout" style="margin-top:9px"><strong>LIVE BOARD:</strong> '+(i==="MOB"?"Click numbered task markers on the source board to assign work at "+site().name+". Completed tasks change to check marks. Change the active FOS using the site selector below.":"Click the command marker to open the associated live workstation.")+'</div>';
  return out;
 }
 function renderLeft(){
