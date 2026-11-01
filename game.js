@@ -239,6 +239,7 @@ function transformBoard() {
 let drag=null;
 
 $("boardViewport").addEventListener("pointerdown",e=>{
+  if(e.target.closest("button"))return;
   drag={
     x:e.clientX,
     y:e.clientY,
