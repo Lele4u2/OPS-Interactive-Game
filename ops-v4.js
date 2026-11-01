@@ -221,7 +221,7 @@ function fighterSortie(){
 }
 function drawCards(){
  if(S.events.some(x=>x.turn===S.turn))return notify("Event and Risk Card already drawn this turn.");
- const team=rnd(4),index=rnd(4),event=EVENTS[S.cardChoice?.event>=0?S.cardChoice.event:rnd(EVENTS.length)-1],risk=RISKS[S.cardChoice?.risk>=0?S.cardChoice.risk:rnd(RISKS.length)-1];
+ const team=rnd(4),index=rnd(4)-1,event=EVENTS[S.cardChoice?.event>=0?S.cardChoice.event:rnd(EVENTS.length)-1],risk=RISKS[S.cardChoice?.risk>=0?S.cardChoice.risk:rnd(RISKS.length)-1];
  S.cardChoice={event:-1,risk:-1};
  const draw={turn:S.turn,team,fos:index,event,risk};S.events.unshift(draw);
  S.effects.push({due:S.turn+1,site:index,kind:"event",item:event},{due:S.turn+1,site:index,kind:"risk",item:risk});
