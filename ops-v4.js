@@ -309,32 +309,77 @@ function renderMap(){
  const fleet=S.fleet.filter(p=>p.status!=="LOST"&&p.status!=="FLYING"&&p.status!=="RETURNING").map((p,i)=>{const pt=point(p.at);const x=pt.x-24+(i%2)*45,y=pt.y+40+Math.floor(i/2)*34;return '<g class="aircraftdot" role="button" tabindex="0" aria-label="Select '+p.name+'" data-action="select-plane" data-plane="'+p.id+'" transform="translate('+x+' '+y+')"><rect rx="8" width="41" height="25"/><text x="20" y="17" text-anchor="middle">✈</text></g>'}).join("");
  return '<div class="mapframe" id="mapframe"><svg viewBox="0 0 900 510" preserveAspectRatio="xMidYMid meet" aria-label="Clickable OPS operational map" role="img"><rect class="mapbg" width="900" height="510"/>'+grid+land+'<circle class="ring" cx="260" cy="290" r="220"/>'+routes+'<g class="mob" data-action="select-mob"><circle cx="'+HOME.x+'" cy="'+HOME.y+'" r="26"/><text x="'+HOME.x+'" y="'+(HOME.y+6)+'" fill="#fff" text-anchor="middle" font-weight="900" font-size="14">MOB</text></g>'+sites+fleet+'<path id="moving-route" class="route" d="" /><g id="moving-plane" transform="translate(-100 -100)" opacity="0" class="flying"><circle r="19" fill="#ffc86e"/><text text-anchor="middle" dy="6" font-size="24" fill="#112633">✈</text></g><text x="20" y="35" font-size="11" fill="#88bbc8" letter-spacing="3">PACIFIC THEATER • TRAINING SCHEMATIC / NOT TO SCALE</text><text x="835" y="489" text-anchor="end" font-size="10" fill="#88bbc8">SELECT SITE OR AIRCRAFT TOKEN</text></svg></div><div class="mapcaption"><div class="maplegend"><span><i class="dot green"></i> MOB</span><span><i class="dot gold"></i> SELECTED FOS</span><span><i class="dot"></i> OTHER FOS</span></div><span class="micro" id="flight-live-label">'+(S.flightFX?h(S.flightFX.label):"CLICK A BOARD TOKEN TO COMMAND IT")+'</span></div>';
 }
+
 function boardInspector(){
- const boardOptions=[["MOB","MOB Board X4.png"],["SPACE","CSPOC Board.png"],["MEDCOM","MEDCOM MOB x4.png"],["CAOC","https://raw.githubusercontent.com/Lele4u2/Operation-Pacific-Shield-Interactive-Simulator/main/CAOC Board.png"],["LOAD","MEDCOM C-130, C-17 and C-5 Loadout Board.png"]];
- const i=S.inspect||"MOB",item=boardOptions.find(x=>x[0]===i)||boardOptions[0];
- let out='<div class="tabs" style="margin:0 0 10px">'+boardOptions.map(x=>'<button class="'+(i===x[0]?"active":"")+'" data-action="inspect" data-id="'+x[0]+'">'+x[0]+'</button>').join("")+'</div>';
- out+='<div class="board-image" style="position:relative">'+(item[1]?'<img src="'+encodeURI(item[1])+'" alt="'+item[0]+' source board" onerror="this.style.display=\'none\'">':'<div class="callout"><h3>CAOC Command Workstation</h3><p>The original CAOC board image is not in this repository. Use the live map, airlift planner, and CAOC mission decisions.</p></div>');
- if(i==="MOB"){
-   const spots=[
-     [20.1,66.2],[27.5,66.2],[20.1,74.4],[27.5,74.4],
-     [35.3,66.2],[41.8,66.2],[35.3,74.4],[41.8,74.4],
-     [20.1,84.1],[27.5,84.1],[20.1,91.4],[27.5,91.4],
-     [35.3,84.1],[41.8,84.1],[35.3,91.4],[41.8,91.4]
-   ];
-   out+='<div class="board-click-layer">';
-   spots.forEach((xy,n)=>{
-     const done=site().tasks.includes(n);
-     out+='<button class="board-task-pin '+(done?"complete":"")+'" style="left:'+xy[0]+'%;top:'+xy[1]+'%" data-action="task" data-index="'+n+'" title="Task '+(n+1)+': '+h(R.tasks[n])+'">'+(done?"✓":n+1)+'</button>';
-   });
-   // RFI assessment hotspot and currently selected forward site.
-   out+='<button class="board-label-pin" style="left:12%;top:66%" data-action="initial-rfi">REQUEST 5 RFIs</button>';
-   out+='<button class="board-label-pin" style="left:48%;top:54%" data-action="select-site" data-index="'+selected+'">'+site().name+' ACTIVE</button>';
-   out+='</div>';
+ S.inspect??="MOB";S.boardZoom??=1;S.boardLayer??="tasks";S.boardPick??={type:"intro"};
+ const options=[
+  ["MOB","MOB Board X4.png"],["CAOC","https://raw.githubusercontent.com/Lele4u2/Operation-Pacific-Shield-Interactive-Simulator/main/CAOC Board.png"],
+  ["SPACE","CSPOC Board.png"],["MEDCOM","MEDCOM MOB x4.png"],["LOAD","MEDCOM C-130, C-17 and C-5 Loadout Board.png"]
+ ];
+ const which=S.inspect,item=options.find(x=>x[0]===which)||options[0];
+ let out='<div class="original-board-toolbar"><div class="tabs">'+options.map(x=>'<button data-action="inspect" data-id="'+x[0]+'" class="'+(which===x[0]?"active":"")+'">'+x[0]+'</button>').join("")+'</div><div class="board-zoom-controls"><button data-action="board-zoom" data-step="-.4">−</button><button data-action="board-reset">FIT</button><button data-action="board-zoom" data-step=".4">＋</button><button class="primary" data-action="board-focus">FOCUS FOS</button></div></div>';
+ if(which==="MOB")out+='<div class="board-banner"><strong>LIVE SOURCE BOARD</strong><span>Click an airfield number, RFI box or numbered task. Every action updates this board and the game.</span></div>';
+ out+='<div class="original-board-viewport" id="originalBoardScroll"><div class="original-board-stage" style="width:'+(100*S.boardZoom)+'%"><img src="'+encodeURI(item[1])+'" draggable="false" alt="Original Operation Pacific Shield '+which+' tabletop board">';
+ if(which==="MOB"){
+  const sectors=[
+   {x:47.3,y:61.5,rfiX:8.3,rfiY:76.0,num:1},
+   {x:52.7,y:61.5,rfiX:63.7,rfiY:76.0,num:2},
+   {x:52.7,y:34.3,rfiX:91.6,rfiY:24.0,num:3},
+   {x:47.3,y:34.3,rfiX:36.5,rfiY:24.0,num:4}
+  ];
+  sectors.forEach((p,k)=>{
+   const f=S.sites[k];
+   out+='<button class="board-airfield '+(selected===k?"current":"")+'" style="left:'+p.x+'%;top:'+p.y+'%" data-action="select-site" data-index="'+k+'" title="Select original board Airfield '+p.num+'">AF '+p.num+'<small>'+f.name+'</small></button>';
+   out+='<button class="board-rfi '+(selected===k?"current":"")+'" style="left:'+p.rfiX+'%;top:'+p.rfiY+'%" data-action="board-rfi" data-index="'+k+'">RFI '+f.rfis.length+'/10</button>';
+  });
+  if(S.boardLayer==="tasks"){
+   const xs=[19.2,26.7,19.2,26.7,35.0,41.7,35.0,41.7,19.2,26.7,19.2,26.7,35.0,41.7,35.0,41.7];
+   const ys=[67.1,67.1,74.4,74.4,67.1,67.1,74.4,74.4,83.8,83.8,90.7,90.7,83.8,83.8,90.7,90.7];
+   for(let i=0;i<16;i++){
+    let x=xs[i],y=ys[i];
+    if(selected===1)x+=54.5;
+    else if(selected===2){x=94.0-x;y=100-y}
+    else if(selected===3){x=45.0-x;y=100-y}
+    const f=site(),done=f.tasks.includes(i),pending=f.pending.some(t=>t.i===i);
+    out+='<button class="board-task-token '+(done?"complete":pending?"pending":"")+'" style="left:'+x+'%;top:'+y+'%" data-action="board-task" data-index="'+i+'" title="'+h(R.tasks[i])+'">'+(done?"✓":pending?"◷":i+1)+'</button>';
+   }
+  }
+  const crew=site().people,taskCt=site().tasks.length;
+  const resourceX=selected===0?27:selected===1?81:selected===2?81:27;
+  out+='<button class="board-cargo" style="left:'+resourceX+'%;top:'+(selected<2?95:5)+'%" data-action="board-cargo">✈ '+site().name+' · '+crew+' PERSONNEL · '+taskCt+'/16 TASKS</button>';
+  out+='<button class="board-cards" style="left:50%;top:79%" data-action="board-cards">🎴 CARDS</button>';
  }else{
-   out+='<div class="board-click-layer"><button class="board-label-pin" style="left:50%;top:18%" data-action="tab" data-id="'+(i==="SPACE"||i==="MEDCOM"?"support":"flight")+'">OPEN LIVE '+i+' CONTROLS</button></div>';
+  out+='<button class="board-other-action" data-action="board-workstation" data-id="'+which+'">OPEN LIVE '+which+' WORKSTATION →</button>';
  }
- out+='</div><div class="callout" style="margin-top:9px"><strong>LIVE BOARD:</strong> '+(i==="MOB"?"Click numbered task markers on the source board to assign work at "+site().name+". Completed tasks change to check marks. Change the active FOS using the site selector below.":"Click the command marker to open the associated live workstation.")+'</div>';
+ out+='</div></div>';
+ if(which==="MOB")out+='<div class="board-toggle"><button data-action="board-layer" data-id="tasks" class="'+(S.boardLayer==="tasks"?"active":"")+'">TASK MARKERS</button><button data-action="board-layer" data-id="clear" class="'+(S.boardLayer==="clear"?"active":"")+'">CLEAN BOARD</button><button data-action="board-rfi" data-index="'+selected+'">REQUEST RFIs</button><button data-action="board-cargo">AIRCRAFT / CARGO</button></div>';
+ out+='<div class="board-lesson" id="board-lesson">'+boardHelp(which)+'</div>';
  return out;
+}
+function boardHelp(which){
+ const f=site(),p=S.boardPick||{type:"intro"},brief='<div class="board-facts"><span>'+f.name+'</span><span>'+f.people+' PEOPLE</span><span>'+f.tasks.length+'/16 TASKS</span><span>'+f.rfis.length+'/10 RFIs</span></div>';
+ if(which!=="MOB"){
+  const text=which==="CAOC"?"Use CAOC flight allocation and airlift planning to approve routes and launch aircraft.":which==="LOAD"?"The source loadout board is a reference for aircraft capacity and equipment. Plan practice chalks in the AIRLIFT workbench.":which==="SPACE"?"Space support can counter a computer-generated disruption during a turn.":"MEDCOM support can mitigate practice demoralization penalties.";
+  return '<div class="micro">ORIGINAL '+which+' BOARD / LIVE WORKSTATION</div><h3>'+which+' — WHAT YOU DO HERE</h3><p>'+text+'</p><div class="actions"><button class="primary" data-action="board-workstation" data-id="'+which+'">OPEN LIVE CONTROLS</button><button data-action="rules">OPEN GUIDELINES</button></div>';
+ }
+ if(p.type==="task"){
+  const i=p.i,pre=taskPrereq(i),missing=pre.filter(n=>!f.tasks.includes(n));
+  let explain="This is one of 16 FOS capability tasks. The computer checks known prerequisites and personnel, then progresses the task as turns pass.";
+  const notes={0:"Bed Down and Sanitation: complete Task 2 (Power) first.",1:"Power enables the basic operating site and is required before Bed Down and Sanitation.",4:"Ramp Security must be complete before Mobility Support (Task 10).",7:"Camouflage and Base Hardening requires 10 personnel over 2 turns, or 11–20 personnel for 1 turn.",9:"Mobility Support requires Task 5 (Ramp Security).",10:"Integrated Combat Turns is one of the Operate capabilities required before fighter sorties."};
+  if(notes[i])explain=notes[i];
+  let status=f.tasks.includes(i)?"COMPLETE":f.pending.some(t=>t.i===i)?"IN PROGRESS":missing.length?"REQUIRES TASK "+missing.map(x=>x+1).join(", "):f.people<5?"NEED 5+ PERSONNEL":"READY FOR TASKING";
+  return brief+'<div class="micro">BOARD TASK '+(i+1)+' · '+R.categories[Math.floor(i/4)]+' · '+status+'</div><h3>'+h(R.tasks[i])+'</h3><p>'+explain+'</p><div class="board-instructions">TO PLAY: Request the task on this board. If prerequisites and staffing are present, the simulated instructor schedules its completion. Exact unverified costs are not assumed to be official.</div><div class="actions"><button class="primary" data-action="board-start-task" data-index="'+i+'" '+(f.tasks.includes(i)||f.pending.some(t=>t.i===i)?"disabled":"")+'>▶ START TASK '+(i+1)+'</button><button data-action="board-cargo">SEND PERSONNEL</button><button data-action="rules">TASK GUIDE</button></div>';
+ }
+ if(p.type==="rfi"){
+  return brief+'<div class="micro">REQUESTS FOR INFORMATION / AIRFIELD ASSESSMENT</div><h3>ASK THE INSTRUCTOR ABOUT '+f.name+'</h3><p>Begin with five initial RFIs, then ask the remaining questions. After all ten responses, the board awards 5 Mission Points using the verified assessment rule.</p><div class="board-instructions">Responses are generated by the simulated instructor for practice, not real-world airfield condition reports.</div><div class="actions"><button class="primary" data-action="initial-rfi" '+(f.rfis.length>=5?"disabled":"")+'>ASK INITIAL FIVE</button><button data-action="board-next-rfi" '+(f.rfis.length===10?"disabled":"")+'>ASK NEXT RFI</button><button data-action="rules">READ GUIDE</button></div>';
+ }
+ if(p.type==="cargo"){
+  return brief+'<div class="micro">MOB / AIRLIFT SUPPORT</div><h3>MOVE RESOURCES TO '+f.name+'</h3><p>Select a C-130, C-17 or C-5, load counters in the AIRLIFT workbench, submit the practice plan and launch. This board updates personnel and resources when the plane arrives. Return flights require a later turn.</p><div class="actions"><button class="primary" data-action="tab" data-id="flight">OPEN AIRLIFT CONTROLS</button><button data-action="inspect" data-id="LOAD">VIEW LOADOUT BOARD</button></div>';
+ }
+ if(p.type==="cards"){
+  return brief+'<div class="micro">ORIGINAL EVENT AND RISK DECK</div><h3>DRAW EVENT / RISK CARDS</h3><p>A D4 selects the team and another D4 selects the FOS. Card effects take place on the following turn. The computer uses labeled practice injects.</p><button class="primary" data-action="tab" data-id="events">OPEN LIVE EVENT CARDS</button>';
+ }
+ return brief+'<div class="micro">GUIDED LIVE BOARD / START HERE</div><h3>CLICK YOUR ORIGINAL OPS BOARD TO PLAY</h3><p><b>1.</b> Choose Airfield 1–4. <b>2.</b> Click an RFI box to assess the FOS. <b>3.</b> Click task numbers on that FOS for requirements and activation. <b>4.</b> Use the aircraft and Event/Risk controls on the board to move resources and handle instructor decisions.</p><div class="actions"><button class="primary" data-action="board-rfi" data-index="'+selected+'">START WITH RFIs</button><button data-action="board-cargo">SEND AN AIRCRAFT</button><button data-action="rules">SEE THE GUIDELINES</button></div>';
 }
 function renderLeft(){
  const intro='<div class="panel"><div class="panel-head"><div><div class="micro">MISSION OBJECTIVES</div><h3>AGILE BASING</h3></div><span class="chip ok">SIM LIVE</span></div><p>Disperse capability, assess FOS sites, move resources and generate eligible sorties.</p><div class="scoregrid"><div class="scorebox"><b class="gold">'+S.mp+'</b><span>MISSION PTS</span></div><div class="scorebox"><b>'+S.training+'</b><span>TRAINING PTS</span></div><div class="scorebox"><b class="red">'+S.dp+'</b><span>DEMORALIZATION</span></div></div><div class="separator"></div><div class="micro">TURN PROGRESS</div><div class="progress"><span style="width:'+Math.min(100,S.turn/12*100)+'%"></span></div><div class="actions" style="margin-top:9px"><button class="primary" data-action="end-turn">END TURN →</button><button data-action="aar">AFTER-ACTION</button></div></div>';
