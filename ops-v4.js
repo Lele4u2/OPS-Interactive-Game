@@ -341,7 +341,7 @@ function boardInspector(){
  const which=S.inspect,item=options.find(x=>x[0]===which)||options[0];
  let out='<div class="original-board-toolbar"><div class="tabs">'+options.map(x=>'<button data-action="inspect" data-id="'+x[0]+'" class="'+(which===x[0]?"active":"")+'">'+x[0]+'</button>').join("")+'</div><div class="board-zoom-controls"><button data-action="board-zoom" data-step="-.4">−</button><button data-action="board-reset">FIT</button><button data-action="board-zoom" data-step=".4">＋</button><button class="primary" data-action="board-focus">FOCUS FOS</button></div></div>';
  if(which==="MOB")out+='<div class="board-banner"><strong>LIVE SOURCE BOARD</strong><span>Click an airfield number, RFI box or numbered task. Every action updates this board and the game.</span></div>';
- out+='<div class="original-board-viewport" id="originalBoardScroll"><div class="original-board-stage" style="width:'+(100*S.boardZoom)+'%"><img src="'+encodeURI(item[1])+'" draggable="false" data-action="board-image-tap" alt="Original Operation Pacific Shield '+which+' tabletop board">';
+ out+='<div class="board-lesson board-lesson-top" id="board-lesson">'+boardHelp(which)+'</div><div class="original-board-viewport" id="originalBoardScroll"><div class="original-board-stage" style="width:'+(100*S.boardZoom)+'%"><img src="'+encodeURI(item[1])+'" draggable="false" data-action="board-image-tap" alt="Original Operation Pacific Shield '+which+' tabletop board" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><div class="board-image-fallback" style="display:none">This original '+which+' board image is not yet in the published repository. Its live controls below still work. Upload the missing image to your GitHub main branch using the expected filename.</div>';
  if(which==="MOB"){
   const flightSlots=S.fleet.filter(p=>p.status!=="LOST").map((p,i)=>{
     const pos=boardLocation(p.at),sx=pos.x/10+((i%2)*3-2),sy=pos.y/10+(Math.floor(i/2)*3+3);
@@ -395,7 +395,6 @@ function boardInspector(){
  }
  out+='</div></div>';
  if(which==="MOB")out+='<div class="board-toggle"><button data-action="board-layer" data-id="tasks" class="'+(S.boardLayer==="tasks"?"active":"")+'">TASK MARKERS</button><button data-action="board-layer" data-id="clear" class="'+(S.boardLayer==="clear"?"active":"")+'">CLEAN BOARD</button><button data-action="board-rfi" data-index="'+selected+'">REQUEST RFIs</button><button data-action="board-cargo">AIRCRAFT / CARGO</button></div>';
- out+='<div class="board-lesson" id="board-lesson">'+boardHelp(which)+'</div>';
  return out;
 }
 function boardHelp(which){
@@ -605,7 +604,7 @@ function action(e){
  else if(a==="board-zoom"){S.boardZoom=Math.max(1,Math.min(3.2,Math.round(((S.boardZoom||1)+Number(target.dataset.step))*10)/10));render()}
  else if(a==="board-reset"){S.boardZoom=1;S.boardScroll={left:0,top:0};S.boardSkipCapture=true;render()}
  else if(a==="board-focus"){S.boardZoom=2;S.boardFocus=true;render()}
- else if(a==="board-workstation"){tab=(id==="SPACE"||id==="MEDCOM")?"support":"flight";render()}
+ else if(a==="board-workstation"){view="board";tab=(id==="SPACE"||id==="MEDCOM")?"support":"flight";render()}
  else if(a==="board-image-tap"){
    const rect=target.getBoundingClientRect();
    const x=(e.clientX-rect.left)/rect.width*100,y=(e.clientY-rect.top)/rect.height*100;
@@ -622,7 +621,7 @@ function action(e){
    S.boardPick=distance<5.5?{type:"task",i:near}:((sector===0&&x<17)||(sector===1&&x<72&&x>54)||(sector===2&&x>86)||(sector===3&&x>30&&x<47))?{type:"rfi"}:{type:"intro"};
    tab="site";render();
  }
- else if(a==="inspect"){S.inspect=id;S.boardZoom=1;S.boardScroll={left:0,top:0};S.boardSkipCapture=true;render()}
+ else if(a==="inspect"){view="board";S.inspect=id;S.boardZoom=1;S.boardScroll={left:0,top:0};S.boardSkipCapture=true;render()}
  else if(a==="cargo")changeCargo(id,Number(target.dataset.step));
  else if(a==="plan")createPlan();
  else if(a==="dispatch")dispatch();
