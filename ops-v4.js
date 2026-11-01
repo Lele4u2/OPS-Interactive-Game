@@ -676,6 +676,97 @@ function renderLeft(){
  const fl='<div class="panel"><div class="panel-head"><div><div class="micro">AIR COMPONENT</div><h3>AIRCRAFT ROSTER</h3></div></div>'+S.fleet.map(p=>'<div data-action="select-plane" data-plane="'+p.id+'" class="fleet-item '+(p.id===activePlane?"on":"")+'"><div class="fleet-icon">✈</div><div><b>'+p.id+' · '+p.name+'</b><small>'+h(smallStatus(p))+'</small></div></div>').join("")+'</div>';
  return '<aside class="column left">'+intro+rs+fl+'</aside>';
 }
+/* MISSION C2: live inventory, LIMFAC and coordination. Practice status rules are labeled. */
+const C2_ROLES=[
+ {id:"COMMAND",title:"MISSION COMMANDER",icon:"★",color:"gold",does:"Set priorities, choose destinations, approve campaign tempo and weigh risk.",with:"CAOC → aircraft/ATO; MOB → FOS resources; GM → risk adjudication",actions:["cmd-recommend","cmd-order"]},
+ {id:"MOB",title:"MOB / FOS LEAD",icon:"🏗",color:"cyan",does:"Assess RFIs, establish/defend/operate/maintain FOS; account for people, food, fuel and equipment.",with:"CAOC → inbound delivery; MEDCOM → health; CSpOC → alerts",actions:["initial-rfi","task"]},
+ {id:"CAOC",title:"AIR COMPONENT / CAOC",icon:"✈",color:"blue",does:"Review aircraft readiness, chalk/ATO, flight routing, destination restrictions and returns.",with:"MOB → landing support and unloading; CSpOC → mission warning; Commander → tasking",actions:["plan","dispatch"]},
+ {id:"SPACE",title:"CSpOC / SPACE",icon:"🛰",color:"purple",does:"Provide simulated warning and satellite-support windows; report availability.",with:"CAOC → routing/mission warning; MOB → protection decisions",actions:["sat-support"]},
+ {id:"MEDCOM",title:"MEDICAL COMMAND",icon:"✚",color:"mint",does:"Prepare clinical capabilities, triage simulated casualties and manage medical response.",with:"MOB → patients/supplies; CAOC → evacuation support",actions:["med-triage"]},
+ {id:"GM",title:"SIMULATED INSTRUCTOR",icon:"⚖",color:"orange",does:"Resolve rules, hazards, dice, and Event/Risk Cards; identify missed requirements.",with:"All positions → questions and adjudication",actions:["cards","dice"]}
+];
+const C2_REQUESTS=[
+ {id:"AIRLIFT",from:"COMMAND",to:"CAOC",title:"Coordinate airlift / ATO",description:"Commander informs CAOC of priority, destination and required load."},
+ {id:"FOS",from:"CAOC",to:"MOB",title:"Confirm FOS reception",description:"CAOC requests receiving-site access, forklift, and personnel readiness."},
+ {id:"SPACE",from:"CAOC",to:"SPACE",title:"Request space warning",description:"CAOC requests CSpOC support for potential disruption."},
+ {id:"MEDICAL",from:"MOB",to:"MEDCOM",title:"Request medical support",description:"MOB requests medical readiness or patient coordination."},
+ {id:"RULES",from:"COMMAND",to:"GM",title:"Request GM adjudication",description:"Escalate simulated mission-rule and event decisions."}
+];
+function assetSummary(){
+ const keys=CARGO.map(x=>x.id),inventory={};
+ for(const key of keys){
+  const mob=Number(S.stock[key]||0);
+  const fos=S.sites.reduce((v,f)=>v+(key==="people"?Math.ceil((f.people||0)/5):Number(f[key]||0)),0);
+  const flying=S.fleet.reduce((v,p)=>v+Number(p.load?.[key]||0),0);
+  inventory[key]={mob,fos,inFlightOrLoaded:flying,total:mob+fos+flying,unit:key==="people"?"5-person teams":"tokens"};
+ }
+ const aircraft=S.fleet.map(p=>({id:p.id,name:p.name,status:p.status,location:p.at,load:cargoWeight(p.load||{}),capacity:capacity(p)}));
+ const ready=aircraft.filter(p=>p.status==="READY").length,held=aircraft.filter(p=>p.status==="DAMAGED"||p.status==="LOST").length,forward=aircraft.filter(p=>p.location!=="MOB"&&p.location!=="LOST").length;
+ return {inventory,aircraft,ready,held,forward,total:aircraft.length};
+}
+function missionLimfacs(){
+ const x=[];
+ const add=(severity,scope,problem,impact,fix,action)=>x.push({severity,scope,problem,impact,fix,action});
+ const fleet=S.fleet.filter(p=>p.status!=="LOST");
+ if(!fleet.some(p=>p.status==="READY"&&p.at==="MOB"))add("HIGH","CAOC","No aircraft currently ready at MOB","No new outbound lift until an aircraft returns or recovers.","Bring a serviceable aircraft home on a subsequent turn.","flight");
+ if(S.plans.some(p=>p.status==="APPROVED"))add("MED","CAOC","Approved chalk not launched","Cargo remains committed but has not reached the FOS.","Launch the approved aircraft or review the flight plan.","flight");
+ if(S.command?.orders.some(o=>o.status==="HOLD"))add("HIGH","COMMAND","Commander order on hold","Automated crew cannot progress this route.","Review crew report, available inventory and destination access.","dashboard");
+ for(const s of S.sites){
+  if(s.people===0)add("HIGH",s.name,"FOS has no personnel","Cannot begin most airfield capability tasks.","Deliver a five-person MRA team.","flight");
+  else{
+   if(s.food===0)add("HIGH",s.name,"Food/water unavailable","Turn-based personnel demoralization can accumulate.","Send food and required unloading capability.","flight");
+   if(s.forklift===0)add("MED",s.name,"No forklift on site","Palletized cargo may not be unloaded.","Send a forklift with the next chalk.","flight");
+   if(!s.tasks.includes(1))add("MED",s.name,"Power task incomplete","Bed Down and Sanitation remains locked by its prerequisite.","Complete Task 2: Power.","site");
+   if(!s.tasks.includes(13))add("MED",s.name,"Health and Welfare incomplete","Practice demoralization penalty can accrue each turn.","Complete Task 14 and coordinate MEDCOM.","site");
+  }
+  if(s.blockedUntil>S.turn||!s.access)add("HIGH",s.name,"Site access/operations restricted","Arriving aircraft and tasks may be interrupted.","Coordinate with CAOC and the simulated GM.","site");
+  if(s.rfis.length<10)add("LOW",s.name,"Airfield assessment incomplete", "The +5 MP ten-RFI award has not been earned.","Request the remaining RFIs.","site");
+ }
+ if(S.medicalBoards?.some(m=>m.patients.red>0&&!m.tasks.includes(2)))add("HIGH","MEDCOM","Critical patients lack triage","Patient care capability is insufficient; simulated penalties may accrue.","Complete Triage Team then treatment capability.","support");
+ if(!(S.support?.space>=S.turn)&&S.mode==="computer")add("LOW","CSpOC","No active space warning window","Computer disruptions have no CSpOC countermeasure.","Task a training satellite or coordinate CSpOC.","support");
+ return x.sort((a,b)=>({HIGH:0,MED:1,LOW:2}[a.severity]-{HIGH:0,MED:1,LOW:2}[b.severity]));
+}
+function objectiveStatus(){
+ const all=S.sites,delivered=S.plans.filter(p=>p.status==="DELIVERED").length;
+ const assessed=all.filter(s=>s.rfis.length===10).length;
+ const staffed=all.filter(s=>s.people>=5).length;
+ const power=all.filter(s=>s.tasks.includes(1)).length;
+ const capable=all.filter(s=>R.fighterGate.every(i=>s.tasks.includes(i))).length;
+ const returned=S.command?.completed||0;
+ return [
+  {name:"Airfields assessed",done:assessed,target:4,meaning:"Complete ten RFIs at each FOS"},
+  {name:"Sites staffed",done:staffed,target:4,meaning:"Deliver at least one five-person team"},
+  {name:"Power established",done:power,target:4,meaning:"Task 2 complete at each site"},
+  {name:"Airlift deliveries",done:delivered,target:4,meaning:"Deliver at least four mission chalks"},
+  {name:"Fighter-capable FOS",done:capable,target:4,meaning:"Complete Establish and Operate at each site"}
+ ];
+}
+function requestCoordination(type){
+ const t=C2_REQUESTS.find(x=>x.id===type);if(!t)return;
+ ensureCommand();
+ const recent=S.coordination.find(x=>x.type===type&&x.turn===S.turn&&x.status==="PENDING");
+ if(recent)return notify("That coordination is already pending this turn.");
+ const item={id:++S.coordSerial,type,from:t.from,to:t.to,title:t.title,turn:S.turn,status:"PENDING",response:"Awaiting "+t.to+" decision"};
+ S.coordination.unshift(item);
+ log(t.from+" requested "+t.title+" from "+t.to+".","SIM COORDINATION");
+ save();render();
+ if(S.command?.auto)setTimeout(()=>{if(S?.coordination?.some(x=>x.id===item.id&&x.status==="PENDING"))resolveCoordination(item.id,true)},600);
+}
+function resolveCoordination(id,approved){
+ const a=S?.coordination?.find(x=>x.id===id);if(!a||a.status!=="PENDING")return;
+ const s=site();
+ let reason="";
+ if(a.type==="FOS"&&S.sites.some(f=>f.blockedUntil>S.turn))reason="At least one FOS is temporarily restricted; confirm your destination.";
+ if(a.type==="AIRLIFT"&&!S.fleet.some(p=>p.status==="READY"&&p.at==="MOB"))reason="No aircraft currently ready at MOB.";
+ if(a.type==="MEDICAL"&&S.medicalBoards?.some(m=>m.patients.red>0&&!m.tasks.includes(2)))reason="Critical patient requires triage capability.";
+ a.status=approved&&!reason?"ACKNOWLEDGED":approved&&reason?"CONDITIONAL":"DECLINED";
+ a.response=approved?(reason||"SIM "+a.to+" acknowledges coordination; monitor mission state."):"SIM "+a.to+" did not approve this request. Commander must reassess.";
+ if(a.type==="SPACE"&&approved)S.support.space=Math.max(S.turn+1,S.support.space||0);
+ if(a.type==="MEDICAL"&&approved)S.support.medical=Math.max(S.turn+1,S.support.medical||0);
+ log(a.title+": "+a.status+" — "+a.response,"SIM "+a.to);
+ save();render();
+}
+
 function renderCommander(){
  ensureCommand();const c=S.command;
  const queued=c.orders.filter(x=>!["CANCELLED","COMPLETE"].includes(x.status)),alerts=c.alerts.slice(0,2);
