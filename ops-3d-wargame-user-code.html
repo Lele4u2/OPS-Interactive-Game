@@ -322,12 +322,12 @@
         this.container = document.getElementById(containerId);
         this.scene = new THREE.Scene();
 
-        this.camera = new THREE.PerspectiveCamera(45, this.container.clientWidth / this.container.clientHeight, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(45, Math.max(this.container.clientWidth, 320) / Math.max(this.container.clientHeight, 320), 0.1, 1000);
         this.camera.position.set(0, 12, 12);
         this.camera.lookAt(0, 0, 0);
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+        this.renderer.setSize(Math.max(this.container.clientWidth, 320), Math.max(this.container.clientHeight, 320));
         this.renderer.shadowMap.enabled = true;
         this.container.appendChild(this.renderer.domElement);
 
@@ -459,7 +459,17 @@
     let table3D = null;
 
     document.addEventListener('DOMContentLoaded', () => {
-      table3D = new Holographic3DTable('three-canvas-container');
+      if (typeof THREE !== 'undefined') {
+        try {
+          table3D = new Holographic3DTable('three-canvas-container');
+        } catch (error) {
+          document.getElementById('three-canvas-container').textContent = '3D renderer unavailable: ' + error.message + '. The practice controls remain available.';
+          console.error(error);
+        }
+      } else {
+        document.getElementById('three-canvas-container').innerHTML = '<div style="padding:30px;color:#ffb300;max-width:480px">3D graphics could not load. Check your internet connection or browser WebGL support. You can still use the practice controls, or return to the original OPS game.</div>';
+      }
+      window.engine = engine;
       populateRoleDropdown();
 
       document.getElementById('btn-start-solo').addEventListener('click', () => {
