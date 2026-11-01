@@ -79,3 +79,32 @@ Logic checks covered source-board interaction, RFIs and scoring, aircraft loadin
 
 ### Distribution warning
 The public GitHub repository contains source files labeled EXECUTION ONLY. Confirm authorization and remove or restrict sensitive exercise documents before distributing invitations.
+
+
+## Mission Command & C2 Dashboard — Commander Update
+
+The game's **COMMAND READINESS** dashboard now sits above the original board and Commander's Order Desk. It displays live practice data from the same game state:
+
+- **MISSION STATUS:** measurable training-objective progress, staffed FOS, deliveries, fighter-capable sites, Mission Points, and completed commander orders.
+- **ALL ASSETS:** remaining tokens at MOB, tokens at FOS, tokens committed on aircraft, total accounted cargo, aircraft readiness and location, MEDCOM practice supplies/patients, and symbolic CSpOC satellites.
+- **PERSONNEL / DUTIES:** responsibilities, what each station can support, and which other roles must coordinate with it (Commander, MOB/FOS, CAOC, CSpOC, MEDCOM, simulated GM).
+- **COORDINATION:** request and record operational coordination acknowledgments, conditional responses, and declines. New commander-issued airlift routes request both CAOC planning and MOB/FOS reception coordination. With no connected teammates, the active simulated crew can acknowledge them; in a live team session a receiving role may act.
+- **LIMFAC WATCH:** live computed limiting factors from current game inventory and FOS/task status, each with impact and next recommended action.
+
+### How to lead a flight mission
+
+1. In the **Commander’s Order Desk**, choose which C-130/C-17/C-5 to task.
+2. Choose a FOS destination and a purpose: ESTABLISH FOS, RESUPPLY, FIGHTER SUPPORT or MEDICAL SUPPORT.
+3. Choose **Return Aircraft to MOB** or **Hold at FOS**.
+4. Click **ISSUE MISSION ORDER**. Watch the live route display and flight order queue.
+5. The simulated computer crew coordinates airlift and FOS reception, selects available practice cargo, prepares an ATO, launches the flight and unloads at your chosen FOS.
+6. If an order cannot proceed (no aircraft, cargo, forklift, site access, missing acknowledgments), review the LIMFAC and coordination alerts, then make a new decision.
+7. Keep **Computer Aircrew: ACTIVE** for execution. To delegate future resupply and turn advancement, separately enable **Autonomous Mission Tempo**. Pause to regain manual control. Autonomy uses practice planning heuristics, not official ATO or instructor decisions.
+
+The interface uses a more colorful **3D-styled** cockpit, raised visual panels, glowing indicators, and aircraft markers. It is not a 3D physics simulator. Geospatial paths are illustrative and not approved real-world routes.
+
+### Verification
+
+Automated game-state tests checked starting C2 status, resource accountability, personnel role reference, CAOC/FOS coordination, selected-aircraft route execution, successful delivery to the exact destination, stock accounting, subsequent-turn return and completed orders. These are not equivalent to live cross-browser visual QA or guaranteed remote multiplayer connectivity.
+
+**Important:** This publicly hosted practice simulator should only contain information approved for public release. Files marked EXECUTION ONLY must be reviewed before inviting outside participants.
