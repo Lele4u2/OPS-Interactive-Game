@@ -1,0 +1,19 @@
+/* Optional, accessible training layer; designed not to interfere with boards. */
+#ops-advisor-launch{position:fixed;right:18px;bottom:18px;z-index:13000;background:#f6cd86;color:#102437;border:2px solid #fff3d0;border-radius:999px;padding:13px 19px;font:800 14px system-ui;box-shadow:0 8px 25px #0009;cursor:pointer}
+#ops-advisor-launch:focus-visible,#ops-advisor-panel button:focus-visible,#ops-advisor-panel select:focus-visible{outline:3px solid #ffcf67;outline-offset:2px}
+#ops-advisor-panel[hidden]{display:none}
+#ops-advisor-panel{position:fixed;z-index:13001;right:16px;bottom:80px;width:min(420px,calc(100vw - 32px));max-height:min(78vh,730px);overflow:auto;border:1px solid #87b0c3;border-radius:17px;background:#10283b;color:#e9f5ff;box-shadow:0 14px 50px #000b;padding:18px;font:14px/1.5 system-ui}
+#ops-advisor-panel .ops-advisor-top{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#ffdc9a}
+#ops-advisor-panel button{border:1px solid #608aa2;background:#19445e;color:#f1faff;border-radius:9px;padding:9px;cursor:pointer}
+#ops-advisor-panel .ops-advisor-top button{font-size:22px;min-width:40px}
+#ops-advisor-panel button:hover{background:#2a627e}
+#ops-advisor-panel .ops-advisor-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+#ops-advisor-panel .ops-advisor-lesson{border:1px solid #456c81;background:#0a1e2e;border-radius:10px;padding:12px}
+#ops-advisor-panel .ops-advisor-lesson strong,#ops-advisor-panel .ops-advisor-lesson small{display:block}
+#ops-advisor-panel .ops-advisor-lesson small{color:#ffd48c;letter-spacing:1.5px;font-size:11px}
+#ops-advisor-panel .ops-advisor-note{color:#b3ccda;font-size:12px}
+#ops-advisor-panel #ops-advisor-answer{min-height:50px;border-left:3px solid #f6cd86;background:#193b52;border-radius:5px;padding:10px}
+#ops-advisor-panel label{display:block;margin:10px 0 4px;font-weight:700}
+#ops-advisor-panel select{width:100%;padding:10px;border-radius:8px;background:#183b51;color:#fff;border:1px solid #7294a8}
+.ops-sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+@media(max-width:540px){#ops-advisor-panel{bottom:76px;right:8px;width:calc(100vw - 16px);padding:12px}#ops-advisor-launch{right:10px;bottom:10px}}
