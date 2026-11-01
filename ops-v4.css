@@ -11,3 +11,43 @@
 .board-task-pin:hover{background:#ffd48c;color:#12202e;box-shadow:0 0 14px #ffd48c}
 .board-task-pin.complete{border-color:#8aefb8;background:#21563eea;color:#a7ffd0}
 .board-label-pin{font-size:10px;padding:6px 9px;border:1px solid #ffcb76;background:#102e46ec;color:#ffe1ac;border-radius:8px;box-shadow:0 0 12px #041522}
+
+
+/* V4.2 ORIGINAL BOARD INTERACTION — physical tabletop is the primary play surface */
+.original-board-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px;margin:0 0 9px}
+.original-board-toolbar .tabs{flex-wrap:wrap;gap:6px}
+.original-board-toolbar .tabs button{padding:8px 10px}
+.board-zoom-controls{display:flex;align-items:center;gap:5px}
+.board-zoom-controls button{padding:8px 12px;min-width:34px}
+.board-banner{display:flex;gap:10px;align-items:center;padding:9px 12px;background:#173949;border:1px solid #2b7181;border-radius:9px;margin-bottom:9px;font-size:12px}
+.board-banner strong{color:#ffcf83;white-space:nowrap;font-family:var(--display);font-size:17px}
+.board-banner span{color:#cae3e9}
+.original-board-viewport{overflow:auto;max-height:min(71vh,780px);min-height:260px;border:2px solid #497d96;border-radius:12px;background:#172d3e;overscroll-behavior:contain;scrollbar-color:#557f95 #0b2131;touch-action:pan-x pan-y}
+.original-board-stage{position:relative;min-width:100%;height:auto;line-height:0;isolation:isolate}
+.original-board-stage>img{display:block;width:100%;height:auto;min-width:0;max-width:none;user-select:none;-webkit-user-drag:none;cursor:crosshair}
+.original-board-stage button{position:absolute;z-index:5;transform:translate(-50%,-50%);line-height:1.15;white-space:nowrap;cursor:pointer}
+.board-airfield{display:grid;place-items:center;gap:2px;min-width:48px;min-height:37px;padding:5px 6px;border:2px solid #64c2e0;border-radius:9px;background:#07273eea;box-shadow:0 0 9px #4ab6db55;font-family:var(--display);font-size:14px;color:#ddf6ff}
+.board-airfield small{display:block;font-family:var(--font);font-size:9px;color:#cfe5ec}
+.board-airfield.current{background:#76572aee;border-color:#ffdc99;box-shadow:0 0 0 4px #ffcb7e44,0 0 18px #fbc97080;color:#fff1c5}
+.board-rfi{padding:6px 6px;min-height:30px;min-width:53px;background:#052d42ec;border:2px solid #84dbc6;border-radius:7px;color:#e4ffff;font-size:11px;box-shadow:0 2px 10px #0007}
+.board-rfi.current{border-color:var(--gold);color:#ffdf9f}
+.board-rfi b{font-size:10px}
+.board-task-token{width:24px;height:24px;min-width:24px;padding:0;border:2px solid #ffce80;border-radius:50%;color:#fef4dd;background:#0d2d42f0;font:900 13px var(--display);box-shadow:0 0 10px #153b52bb,0 0 4px #f1c97b}
+.board-task-token:hover{background:var(--gold);color:#142331;box-shadow:0 0 0 4px #fedb8e8a;z-index:8}
+.board-task-token.complete{border-color:#79f1b8;background:#1a674edc;color:#d6ffe5}
+.board-task-token.pending{border-color:#91e6ff;background:#13496b;color:#e3f9ff}
+.board-cargo{font-size:10px;padding:5px 7px;background:#052e49ec;border:1px solid #71d5ed;color:#eafaff;border-radius:7px}
+.board-cards{font-size:11px;border-color:#fed081;color:#ffe6ae;background:#49371fe8;padding:5px 8px;border-radius:7px}
+.board-other-action{top:13%;left:50%;font-size:12px;padding:11px 20px;border:2px solid #f4c87b;color:#ffdfad;background:#10334beb;border-radius:9px}
+.board-toggle{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}
+.board-toggle button{font-size:11px;padding:8px 12px;flex:1}
+.board-toggle button.active{background:#634d31;color:#ffe5a9;border-color:#f2bd71}
+.board-lesson{margin-top:10px;padding:16px;background:linear-gradient(120deg,#153d51,#0d2c3d);border:1px solid #578297;border-left:4px solid var(--gold);border-radius:11px}
+.board-lesson h3{font-size:24px;margin:6px 0}
+.board-lesson p{font-size:13px;color:#d4e6ed}
+.board-lesson .actions{margin-top:12px}
+.board-facts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.board-facts span{padding:6px 9px;font-size:10px;letter-spacing:.03em;font-weight:850;background:#0b293b;border:1px solid #487085;border-radius:6px;color:#c5e3ed}
+.board-facts span:first-child{background:#5c4c2e;border-color:#d5ad65;color:#ffe4a8}
+.board-instructions{padding:10px 12px;font-size:12px;line-height:1.5;background:#0c293b;border:1px solid #33627b;border-radius:8px;color:#cbe5f0}
+@media(max-width:750px){.original-board-toolbar{align-items:stretch}.original-board-toolbar .tabs{width:100%}.original-board-toolbar .tabs button{flex:1;font-size:11px;padding:8px}.board-banner{display:block}.board-banner strong{display:block}.original-board-viewport{min-height:230px;max-height:60vh}.board-task-token{width:20px;height:20px;min-width:20px;font-size:12px;padding:0}.board-airfield{min-width:40px;min-height:27px;padding:3px 4px;font-size:11px}.board-airfield small{font-size:8px}.board-rfi{font-size:9px;min-width:40px;min-height:24px;padding:3px}.board-cargo{font-size:8px;max-width:200px;white-space:normal;line-height:1.2}.board-lesson{padding:12px}.board-lesson h3{font-size:21px}}
