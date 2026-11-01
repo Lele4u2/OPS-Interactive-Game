@@ -356,7 +356,7 @@ function animate(from,to,done,label){
  if(btn)btn.textContent=label;
  if(path)path.setAttribute("d","M"+d1.x+" "+d1.y+" Q"+((d1.x+d2.x)/2)+" "+(Math.min(d1.y,d2.y)-95)+" "+d2.x+" "+d2.y);
  const begin=performance.now();
- function frame(t){const u=Math.min(1,(t-begin)/2600),x=d1.x+(d2.x-d1.x)*u,y=d1.y+(d2.y-d1.y)*u-110*Math.sin(Math.PI*u);if(marker){marker.setAttribute("transform","translate("+x+" "+y+")");marker.setAttribute("opacity","1")}if(u<1)requestAnimationFrame(frame);else{moving=false;S.flightFX=null;done();render();save()}}
+ function frame(t){const u=Math.min(1,(t-begin)/2600),x=d1.x+(d2.x-d1.x)*u,y=d1.y+(d2.y-d1.y)*u-110*Math.sin(Math.PI*u);if(marker){marker.setAttribute("transform","translate("+x+" "+y+")");marker.setAttribute("opacity","1")}if(u<1)requestAnimationFrame(frame);else{moving=false;S.flightFX=null;done();render();save();if(S?.command?.auto)queueCommandSoon()}}
  requestAnimationFrame(frame);
 }
 function dispatch(){
@@ -496,6 +496,7 @@ function endTurn(){
  S.impact=S.impact.slice(0,32);
  log("Turn "+S.turn+" planning opened.","OPS");
  save();render();
+ if(S?.command?.auto&&!S.finished&&!S.command.autoTurns)queueCommandSoon();
 }
 function setSite(i){if(!S.sites[i])return;selected=i;S.site=i;ensureCommand();S.command.pickSite=S.sites[i].id;S.flags.selected=true;save();render()}
 function modeSwitch(m){if(!S)return;S.mode=m;save();render();notify("Mode changed to "+m+".")}
