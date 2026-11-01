@@ -8,11 +8,13 @@
 window.OPS_RULES = Object.freeze({
   roles: ["MOB", "CAOC", "SPACE", "MEDCOM"],
 
-  boards: {
-    MOB: "assets/mob.png",
-    CAOC: "assets/caoc.png",
-    SPACE: "assets/cspoc.png",
-    MEDCOM: "assets/medcom.png"
+boards: {
+  MOB: "MOB Board X4.png",
+  CAOC: "CAOC Board.png",
+  SPACE: "CSPOC Board.png",
+  MEDCOM: "MEDCOM MOB x4.png"
+},
+
   },
 
   RFIs: [
