@@ -13,6 +13,12 @@ const SIM_TARGETS=[{id:"SIM-A",name:"OPFOR Training Site Alpha",x:795,y:150},{id
 const BOARD_BASE={x:500,y:485};
 const BOARD_SITES=[{x:260,y:790},{x:770,y:790},{x:770,y:215},{x:260,y:215}];
 function boardLocation(ref){if(ref==="MOB")return BOARD_BASE;const j=POS.findIndex(p=>p.id===ref);return BOARD_SITES[Math.max(0,j)];}
+const MEDICAL_TASKS=[
+"Blood Support","Battlefield Surgery","Triage Team","Battlefield Hospital",
+"Delayed Bedspace","Medic Response","Minimal Care","Minimal Bedspace",
+"Flight Surgeon","Flight Nurse","Medical Service Corp","Aeromedical Supply",
+"Mortuary Affairs","Mortuary Services","Medical Logistics","War Reserve Material"
+];
 const CARGO=[
  {id:"people",name:"5-person MRA team",icon:"👥"},
  {id:"forklift",name:"Forklift equipment",icon:"🚜"},
@@ -59,14 +65,14 @@ function game(mode,diff){
    {id:"C5-A",type:"C5",name:"C-5 Galaxy",at:"MOB",status:"READY",load:{},landed:0,until:0}
   ],
   plans:[],events:[],effects:[],log:[],impact:[],strikes:[],targetId:"SIM-A",cardChoice:{event:-1,risk:-1},flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
-  ratings:{operations:0,decisions:0,logistics:0},support:{space:0,medical:0,requested:{}},sound:false,history:[],
+  ratings:{operations:0,decisions:0,logistics:0},medicalBoards:Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8})),medicalBoard:0,support:{space:0,medical:0,requested:{}},sound:false,history:[],
   objective:{"name":"Activate and sustain forward operating sites","target":25}
  };
 }
 function log(msg,who="OPS"){if(!S)return;S.log.unshift({turn:S.turn,who,msg,time:new Date().toLocaleTimeString()});S.log=S.log.slice(0,120)}
 function notify(msg){const old=$("toastpop");if(old)old.remove();const d=document.createElement("div");d.id="toastpop";d.className="toast";d.textContent=msg;document.body.appendChild(d);clearTimeout(toastTimer);toastTimer=setTimeout(()=>d.remove(),3800)}
 function save(show=false){if(!S)return;try{localStorage.setItem(KEY,JSON.stringify(S));if(show)notify("Mission saved on this device.")}catch(e){notify("Browser save unavailable.")}window.OPS_COPLAY?.broadcast?.(S)}
-function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];S.sites.forEach(x=>x.shortageDays??=0);selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
+function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];S.medicalBoards??=Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8}));S.medicalBoard??=0;S.sites.forEach(x=>x.shortageDays??=0);selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
 function start(mode,diff){
  S=game(mode,diff);modal="";selected=0;activePlane="C130-A";tab="site";view="board";cargo={people:1,forklift:1};
  log("Mission initialized: "+mode.toUpperCase()+" / "+diff.toUpperCase()+".","SIM GM");
@@ -253,7 +259,7 @@ function effect(e){
  else if(k==="supply"){S.stock.food+=2;log("Computer supplied two additional food tokens at MOB.","SIM GM")}
  else if(k==="repair"){S.fleet.filter(p=>p.status==="DAMAGED").forEach(p=>p.until=Math.max(S.turn,p.until-1));log("Maintenance recovery accelerates one turn.","SIM GM")}
  else if(k==="assessment"){log("Airfield assessment support is available at "+s.name+".","SIM GM")}
- else if(k==="medical"){S.dp+=2;log("Medical surge generated 2 practice DP.","SIM OPFOR")}
+ else if(k==="medical"){S.dp+=2;const m=S.medicalBoards?.[S.medicalBoard||0];if(m)m.patients.red++;S.impact.unshift({turn:S.turn,level:"warning",text:"Medical emergency: a red-priority simulated patient was added to MEDCOM. Use the MEDCOM board to establish Triage and treat the patient."});log("Medical surge generated a simulated red-priority patient and 2 practice DP.","SIM OPFOR")}
 }
 function endTurn(){
  S.support??={space:0,medical:0,requested:{}};
@@ -274,6 +280,13 @@ function endTurn(){
   }
  }
  S.fleet.forEach(p=>{if(p.status==="DAMAGED"&&p.until<=S.turn){p.status="AT FOS";log(p.name+" repaired; ready for departure from FOS.","SIM GM")}});
+ for(const m of S.medicalBoards||[]){
+  const ready=m.pending.filter(t=>t.due<=S.turn);m.pending=m.pending.filter(t=>t.due>S.turn);
+  for(const t of ready){if(!m.tasks.includes(t.i)){m.tasks.push(t.i);S.training+=3;log(m.name+" activated practice capability "+MEDICAL_TASKS[t.i]+".","SIM MEDCOM")}}
+  if(m.patients.red>0&&!m.tasks.includes(2)){
+   S.dp+=2;S.impact.unshift({turn:S.turn,level:"warning",text:m.name+" has "+m.patients.red+" critical-priority patient(s) without an active Triage Team: +2 practice DP. Activate Task 3 and start treatment."});
+  }
+ }
  if(S.mode==="computer"){
    const pressure={cadet:1,standard:2,veteran:4}[S.diff]||2;
    const target=S.sites.reduce((a,b)=>{
@@ -514,6 +527,25 @@ function renderRight(){
  let current=tab;if(!["site","flight","events","support"].includes(current))current="site";
  return '<aside class="column right"><div class="panel"><div class="panel-head"><div><div class="micro">MISSION WORKBENCH</div><h3>COMMAND ACTIONS</h3></div></div><div class="tabs" style="margin-bottom:14px"><button data-action="tab" data-id="site" class="'+(current==="site"?"active":"")+'">FOS</button><button data-action="tab" data-id="flight" class="'+(current==="flight"?"active":"")+'">AIRLIFT</button><button data-action="tab" data-id="events" class="'+(current==="events"?"active":"")+'">GM CARDS</button><button data-action="tab" data-id="support" class="'+(current==="support"?"active":"")+'">SUPPORT</button></div>'+(current==="site"?renderSite():current==="flight"?renderFlight():current==="events"?renderEvents():renderSupport())+'</div></aside>';
 }
+function medAction(i){
+ S.medicalBoards??=Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8}));
+ const m=S.medicalBoards[S.medicalBoard||0];
+ if(m.tasks.includes(i)||m.pending.some(x=>x.i===i))return notify("This MEDCOM capability is already complete or underway.");
+ if(m.supply<1)return notify("Medical practice supplies are depleted. The simulated instructor cannot start another task.");
+ m.supply--;m.pending.push({i,due:S.turn+(i===3?2:1)});
+ log("SIM MEDCOM scheduled "+MEDICAL_TASKS[i]+" (Task "+(i+1)+") to complete on Turn "+(S.turn+(i===3?2:1))+". Practice supply -1.","SIM MEDCOM");
+ S.training+=1;save();render();
+}
+function medTriage(){
+ const m=S.medicalBoards[S.medicalBoard||0];
+ if(!m.tasks.includes(2))return notify("First complete MEDCOM Task 3: Triage Team.");
+ if(m.patients.red>0&&!m.tasks.includes(1)&&!m.tasks.includes(3))return notify("Critical patient needs Battlefield Surgery or Battlefield Hospital capability.");
+ const kind=m.patients.red?"red":m.patients.yellow?"yellow":"green";
+ if(!m.patients[kind])return notify("No patients are awaiting treatment.");
+ m.patients[kind]--;S.training+=5;S.dp=Math.max(0,S.dp-2);
+ S.impact.unshift({turn:S.turn,level:"success",text:m.name+" completed a simulated "+kind+"-priority patient treatment. Practice demoralization decreased."});
+ log(m.name+" completed triage/treatment for one "+kind+" patient.","SIM MEDCOM");save();render();
+}
 function renderSupport(){
  S.support??={space:0,medical:0,requested:{}};
  return '<div class="micro">SUPPORT COMPONENTS</div><h2>JOINT SUPPORT</h2><div class="missioncard"><h3>CSpOC</h3><p>Space warning and synchronization: in computer mode, a timely CSpOC request can counter one simulated OPFOR disruption.</p><div class="status '+(S.support.space>=S.turn?"success":"")+'">'+(S.support.space>=S.turn?"SPACE SUPPORT ACTIVE":"AWAITING REQUEST")+'</div><button class="full" data-action="support" data-id="space" '+(S.support.requested.space===S.turn?"disabled":"")+'>REQUEST SIM CSpOC ASSESSMENT</button></div><div class="missioncard"><h3>MEDCOM</h3><p>Medical coordination can mitigate up to five practice Demoralization Points in the following turn.</p><div class="status '+(S.support.medical>=S.turn?"success":"")+'">'+(S.support.medical>=S.turn?"MEDICAL SUPPORT ACTIVE":"AWAITING REQUEST")+'</div><button class="full" data-action="support" data-id="medical" '+(S.support.requested.medical===S.turn?"disabled":"")+'>REQUEST SIM MEDCOM SUPPORT</button></div><p class="micro">These are explicitly simulated support mechanics, not official component execution rules.</p>';
@@ -628,6 +660,11 @@ function action(e){
  else if(a==="return")returnFlight();
  else if(a==="fighter-assign")deployFighter();
  else if(a==="fighter-launch")fighterSortie();
+ else if(a==="med-board"){S.medicalBoard=i;S.boardPick={type:"intro"};render()}
+ else if(a==="med-task"){S.boardPick={type:"med-task",i};render()}
+ else if(a==="med-start"){medAction(i)}
+ else if(a==="med-triage"){medTriage()}
+ else if(a==="med-incident"){S.medicalBoards[S.medicalBoard||0].patients.red++;S.impact.unshift({turn:S.turn,level:"warning",text:"Training patient arrival: red-priority casualty on MEDCOM "+((S.medicalBoard||0)+1)+". Complete Triage Team and treatment capability."});save();render()}
  else if(a==="target-select"){S.targetId=id;tab="site";save();render();notify("Selected simulated target: "+id)}
  else if(a==="cards")drawCards();
  else if(a==="choose-card"){S.cardChoice??={event:-1,risk:-1};S.cardChoice[target.dataset.kind]=i;save();render()}
