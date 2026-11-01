@@ -13,7 +13,7 @@ function authorized(role,a,p){
  if(role==="GM")return !["new-game","start","resume","difficulty","invite"].includes(a);
  if(role==="MOB")return ["rfi","initial-rfi","board-next-rfi","task","board-start-task"].includes(a);
  if(role==="CAOC")return ["cargo","plan","dispatch","return","fighter-assign","fighter-launch"].includes(a);
- if(role==="CSpOC")return a==="support"&&p.id==="space";
+ if(role==="CSpOC")return (a==="support"&&p.id==="space")||a==="board-satellite"||a==="sat-support";
  if(role==="MEDCOM")return a==="support"&&p.id==="medical";
  return false;
 }
