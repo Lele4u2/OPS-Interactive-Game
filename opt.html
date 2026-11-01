@@ -1,0 +1,1133 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OPS | Operation Pacific Shield — Mission Simulator</title>
+<style>
+:root{
+--bg:#040d18;--panel:#0e2435;--panel2:#15394e;
+--line:#385b72;--gold:#f6c978;--blue:#64d6ff;
+--green:#6ff1b7;--red:#ff718a;--text:#eff7ff;
+--muted:#a9c2d2
+}
+*{box-sizing:border-box}
+body{
+margin:0;color:var(--text);
+font:14px system-ui,"Segoe UI",Arial,sans-serif;
+background:radial-gradient(ellipse at 50% 0,#17415d,#040d18 65%)
+}
+button,input,select{font:inherit}
+button{
+color:var(--text);background:#1a4055;
+border:1px solid #52778e;border-radius:8px;
+padding:10px;cursor:pointer;font-weight:800
+}
+button:hover:not(:disabled){background:#2b6179;border-color:var(--gold)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible{outline:2px solid var(--gold)}
+.primary{
+background:linear-gradient(130deg,#ffe2a4,#c99a49);
+color:#122434;border-color:#ffe6ae
+}
+h1,h2,h3,p{margin:0}
+h1{font-size:clamp(38px,6vw,72px);line-height:1.03}
+h2{font-size:21px;margin-bottom:9px}
+h3{font-size:15px;margin-bottom:8px}
+p{color:var(--muted);line-height:1.6;margin:7px 0}
+small{color:var(--muted)}
+.gold{color:var(--gold)}
+.good{color:var(--green)}
+.bad{color:var(--red)}
+.hidden{display:none!important}
+.top{
+background:#081a29e8;border-bottom:1px solid var(--line);
+padding:13px 17px;display:flex;align-items:center;
+justify-content:space-between;flex-wrap:wrap;gap:10px
+}
+.brand{font-weight:950;font-size:23px;letter-spacing:1px}
+.brand span{color:var(--gold)}
+.hud{display:flex;gap:18px;flex-wrap:wrap}
+.hud div{font-size:10px;color:var(--muted);font-weight:800}
+.hud b{display:block;font-size:19px;color:var(--gold)}
+.shell{
+max-width:1800px;margin:auto;padding:12px;
+display:grid;grid-template-columns:255px minmax(350px,1fr) 365px;gap:12px
+}
+.panel{
+background:linear-gradient(150deg,#17384b,#0b1e2e);
+border:1px solid var(--line);padding:14px;
+border-radius:13px;margin-bottom:12px;
+box-shadow:0 12px 30px #0004
+}
+.label{
+color:var(--gold);letter-spacing:2px;
+font-size:10px;font-weight:950;margin-bottom:10px
+}
+.row{
+display:flex;justify-content:space-between;
+gap:9px;align-items:center;
+padding:9px 0;border-bottom:1px solid #34556b
+}
+.row b{color:var(--gold)}
+.wide{width:100%;margin-top:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.meter{height:10px;background:#26485d;border-radius:10px;overflow:hidden;margin:10px 0}
+.meter span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--green));transition:width .4s}
+.tag{
+display:inline-block;font-size:10px;font-weight:900;
+border:1px solid #618498;padding:4px 7px;border-radius:6px
+}
+.card{
+padding:12px;background:#123349;
+border:1px solid #466b83;border-radius:10px;margin:10px 0
+}
+.card p{font-size:12px}
+.tabs{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0}
+.tabs button{flex:1;min-width:62px;font-size:11px;padding:8px}
+.tabs button.active{background:#6b5637;border-color:var(--gold)}
+.board{
+height:min(62vh,600px);min-height:420px;
+background:radial-gradient(ellipse at center,#206582,#08223a);
+border:1px solid #658ca4;border-radius:12px;
+position:relative;overflow:hidden
+}
+.board svg{width:100%;height:100%;display:block}
+.hex{
+fill:#58a5c6;fill-opacity:.1;
+stroke:#b6e5ec;stroke-opacity:.35;cursor:pointer
+}
+.hex:hover,.hex.active{
+fill:var(--gold);fill-opacity:.3;
+stroke:var(--gold);stroke-width:2.5
+}
+.site{cursor:pointer}
+.site circle{stroke:#ffdf9d;stroke-width:3}
+.site text{
+fill:white;font-size:12px;font-weight:900;
+text-anchor:middle;paint-order:stroke;
+stroke:#08253a;stroke-width:4;
+pointer-events:none
+}
+.flightpath{fill:none;stroke:var(--blue);stroke-width:3;stroke-dasharray:9 10}
+.airtoken{cursor:pointer}
+.airtoken text{font-size:29px;fill:var(--gold)}
+.airtoken.inflight{
+offset-path:path("M 180 335 Q 330 105 510 245");
+offset-distance:0%;
+animation:takeFlight 2.6s ease-in-out forwards;
+}
+.airtoken.inflight text{transform:translate(-180px,-335px)}
+@keyframes takeFlight{
+from{offset-distance:0%}
+to{offset-distance:100%}
+}
+.radar{
+position:absolute;top:12px;right:12px;
+background:#062032e9;padding:8px 10px;
+border:1px solid #4b8295;border-radius:8px;
+font-size:10px;color:var(--gold);font-weight:900
+}
+.mapinfo{
+position:absolute;left:10px;right:10px;bottom:10px;
+background:#071a2ae8;border:1px solid #50778e;
+border-radius:9px;padding:11px;font-size:12px
+}
+.log{max-height:190px;overflow:auto}
+.log div{padding:7px 0;border-bottom:1px solid #34556b;font-size:11px}
+.log b{color:var(--gold)}
+.hint{
+padding:11px;background:#204555;
+border-left:3px solid var(--gold);
+border-radius:8px;font-size:12px;line-height:1.65
+}
+.rfis,.tasks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.rfis button,.tasks button{text-align:left;font-size:11px;min-height:52px}
+.tasks button{min-height:65px}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0}
+.slot{
+min-height:66px;border:2px dashed #7297aa;
+background:#193b4e;display:grid;place-content:center;
+text-align:center;font-size:11px
+}
+.slot.filled{background:#27564a;border:2px solid var(--green)}
+.counter.selected{border-color:var(--gold);background:#6a5636}
+.work{max-height:calc(100vh - 110px);overflow:auto}
+select,input{
+width:100%;background:#102d41;color:white;
+padding:10px;border:1px solid #63859b;border-radius:8px
+}
+.overlay{
+position:fixed;inset:0;z-index:100;
+background:#020912ed;display:grid;place-items:center;
+padding:16px;backdrop-filter:blur(5px)
+}
+.modal{
+width:min(850px,100%);max-height:92vh;overflow:auto;
+padding:28px;border-radius:18px;
+background:linear-gradient(135deg,#17415c,#091b2c);
+border:1px solid #7a9aab;
+box-shadow:0 25px 90px #000b
+}
+.roles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:20px 0}
+.roles button{min-height:105px;text-align:left}
+.roles button.selected{background:#6b5432;border-color:var(--gold)}
+.roles strong{display:block;font-size:24px}
+.notice{
+position:fixed;top:80px;right:12px;z-index:120;
+background:#194354;border:1px solid var(--gold);
+padding:13px;border-radius:10px;
+box-shadow:0 15px 35px #0009;
+max-width:360px
+}
+@media(max-width:1150px){
+.shell{grid-template-columns:210px minmax(300px,1fr) 310px}
+}
+@media(max-width:850px){
+.shell{display:block}
+.board{height:420px}
+.work{max-height:none}
+.roles{grid-template-columns:1fr 1fr}
+}
+@media(prefers-reduced-motion:reduce){
+.airtoken.inflight{animation-duration:.01s}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+ <div class="brand">OPS <span>/// PACIFIC SHIELD</span></div>
+ <div class="hud">
+  <div>STATION<b id="hRole">—</b></div>
+  <div>TURN<b id="hTurn">—</b></div>
+  <div>PHASE<b id="hPhase">—</b></div>
+  <div>PROGRESS<b id="hProgress">0%</b></div>
+ </div>
+ <div>
+  <button onclick="dice()">🎲 D6</button>
+  <button onclick="help()">RULES</button>
+ </div>
+</header>
+
+<div class="shell">
+ <aside>
+  <section class="panel">
+   <div class="label">MISSION COMMAND</div>
+   <h2>FOS LANTERN</h2>
+   <p>OPS training scenario — build operational capability using supported decisions.</p>
+   <div class="meter"><span id="progressBar"></span></div>
+   <div id="objectives"></div>
+   <button class="primary wide" id="turnButton" onclick="advance()">
+    EXECUTE TURN
+   </button>
+   <div class="two" style="margin-top:8px">
+    <button onclick="save(true)">SAVE</button>
+    <button onclick="resetGame()">RESTART</button>
+   </div>
+  </section>
+  <section class="panel">
+   <div class="label">ASSIGNED PERSONNEL</div>
+   <div id="roster"></div>
+   <button class="wide" onclick="switchStation()">SWITCH HUMAN POSITION</button>
+   <div class="label" style="margin-top:17px">MISSION COACH</div>
+   <div class="hint" id="coach"></div>
+  </section>
+ </aside>
+
+ <main>
+  <section class="panel">
+   <div class="label">LIVE TACTICAL BOARD</div>
+   <h2>PACIFIC OPERATIONS AREA</h2>
+   <div class="board">
+    <svg id="map" viewBox="0 0 900 530" role="img"
+     aria-label="Interactive Pacific exercise board"></svg>
+    <div class="radar">◉ TRACKING ONLINE</div>
+    <div class="mapinfo" id="mapInfo">Click a hex, airfield, or aircraft.</div>
+   </div>
+   <div class="two" style="margin-top:8px">
+    <button onclick="setTab('MOB')">MOB / FOS</button>
+    <button onclick="setTab('CAOC')">CAOC / AIRLIFT</button>
+    <button onclick="setTab('SPACE')">CSpOC</button>
+    <button onclick="setTab('MEDCOM')">MEDCOM</button>
+   </div>
+  </section>
+  <section class="panel">
+   <div class="label">LIVE OPERATION LOG</div>
+   <div id="logs" class="log"></div>
+  </section>
+ </main>
+
+ <aside>
+  <section class="panel work">
+   <div class="label">ACTIVE WORKSTATION</div>
+   <div id="tabs" class="tabs"></div>
+   <div id="work"></div>
+  </section>
+ </aside>
+</div>
+
+<div id="start" class="overlay">
+ <div class="modal">
+  <div class="label">MISSION STARTUP / SOLO TRAINING</div>
+  <h1>OPERATION<br><span class="gold">PACIFIC SHIELD</span></h1>
+  <p>Take control of an OPS station. Computer-controlled teammates fill vacant positions. Coordinate RFIs, CAOC allocation, loading, the ATO, space support, medical movement, and turn execution.</p>
+  <div id="roleChoices" class="roles"></div>
+  <button class="primary wide" onclick="begin()">▶ START MISSION</button>
+  <button class="wide" onclick="resume()">RESUME SAVED MISSION</button>
+  <p><small>Fictional practice environment. Not an official OPS adjudication tool.</small></p>
+ </div>
+</div>
+
+<div id="help" class="overlay hidden">
+ <div class="modal">
+  <h2>OPS PLAY GUIDE</h2>
+  <p><b>1.</b> Review the mission order and political access before planning.</p>
+  <p><b>2.</b> MOB selects the initial five RFIs. The simulated GM responds during execution.</p>
+  <p><b>3.</b> MOB requests an aircraft; CAOC allocates it.</p>
+  <p><b>4.</b> MOB loads counters, prepares the ATO with destination, alternate, and intent, and submits it.</p>
+  <p><b>5.</b> CAOC reviews the package and issues simulated clearance/PPR.</p>
+  <p><b>6.</b> Execute the turn to animate approved aircraft and resolve supported actions.</p>
+  <p><b>7.</b> Review the log and debrief. AI operates all unoccupied stations.</p>
+  <p><small>Only the rules positively verified from the supplied guide are represented as guide-derived. Unverified task adjudications remain unavailable.</small></p>
+  <button class="primary wide" onclick="$('help').classList.add('hidden')">CLOSE</button>
+ </div>
+</div>
+
+<div id="notice" class="notice hidden"></div>
+
+<script>
+"use strict";
+
+const $=id=>document.getElementById(id);
+const ROLES=["MOB","CAOC","SPACE","MEDCOM"];
+const KEY="OPS_CONSOLE_V1";
+const RFIS=[
+ "Crash Fire Rescue","Mobility Support",
+ "Ramp Space","Air Traffic Control",
+ "Equipment","Bed Down","Fuel",
+ "Airfield Security","Host Nation Support",
+ "Medical Capability"
+];
+const TASKS=[
+ "Bed Down and Sanitation","Power","Command and Control","Contracts",
+ "Ramp Security","Perimeter Security","Missile Defense",
+ "Camouflage and Hardening","Airfield Operations","Mobility Support",
+ "Combat Turn Support","Fueling Operations","Host Nation Relations",
+ "Health and Welfare","Base Recovery","Logistics Support"
+];
+
+let G=null;
+let chosen="MOB";
+let tab="BRIEF";
+let selectedToken="pallet";
+let activeHex="";
+let flightAnimating=false;
+
+function newState(role){
+ return {
+  role,turn:1,phase:"BRIEF",done:false,seq:0,
+  review:{orders:false,access:false},
+  asked:[],answered:[],results:{},
+  home:{pallet:12,team:10},
+  fos:{pallet:0,team:0},
+  aircraft:[
+   {id:"C17",name:"C-17",capacity:8,status:"AVAILABLE",load:[]},
+   {id:"C130",name:"C-130",capacity:5,status:"AVAILABLE",load:[]},
+   {id:"C5",name:"C-5",capacity:12,status:"AVAILABLE",load:[]},
+   {id:"MED",name:"Medical C-130",capacity:1,status:"AVAILABLE",load:[]}
+  ],
+  requests:[],
+  space:"OPEN",
+  triage:"OPEN",
+  patients:{fos:1,hospital:0,beds:2},
+  tasksDone:[],
+  tasksQueued:[],
+  verified:false,
+  logs:[],
+  moving:[]
+ };
+}
+function escapeHTML(s){
+ return String(s).replace(/[&<>"']/g,c=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",
+  '"':"&quot;","'":"&#39;"
+ })[c]);
+}
+function notify(message){
+ $("notice").textContent=message;
+ $("notice").classList.remove("hidden");
+ clearTimeout(notify.timer);
+ notify.timer=setTimeout(()=>$("notice").classList.add("hidden"),3500);
+}
+function log(message,station="OPS"){
+ G.logs.unshift({turn:G.turn,station,message});
+ G.logs=G.logs.slice(0,100);
+}
+function plane(id){return G.aircraft.find(x=>x.id===id)}
+function request(id){return G.requests.find(x=>x.id===id)}
+function mine(role){
+ return G&&G.role===role&&G.phase==="PLAN"&&!G.done;
+}
+function act(type,arg={},actor=G.role){
+ try{
+  apply(type,arg,actor);
+  driveAI();
+  render();
+  save(false);
+ }catch(e){
+  if(actor!=="AI")notify(e.message);
+ }
+}
+function apply(type,a,actor){
+ if(G.phase!=="PLAN"||G.done)
+  throw Error("This action is only available during planning.");
+
+ const role=x=>{
+  if(actor!==x&&actor!=="AI")
+   throw Error("This action belongs to "+x+".");
+ };
+
+ let r,p;
+ switch(type){
+
+ case "RFI":
+  role("MOB");
+  if(G.asked.includes(a.i))throw Error("RFI already requested.");
+  if(G.asked.length>=5&&G.answered.length<5)
+   throw Error("Receive your first five GM responses.");
+  if(G.asked.length>=5&&G.fos.team<2)
+   throw Error("Follow-on RFI access requires additional site support in this practice scenario.");
+  G.asked.push(a.i);
+  log("Requested RFI: "+RFIS[a.i],"MOB");
+  return;
+
+ case "REQUEST":
+  role(a.med?"MEDCOM":"MOB");
+  p=plane(a.id);
+  if(!p||p.status!=="AVAILABLE")
+   throw Error("Aircraft unavailable.");
+  if(a.med){
+   if(p.id!=="MED"||G.triage!=="COMPLETE")
+    throw Error("Complete triage before the medical request.");
+  }else{
+   if(p.id==="MED"||p.capacity<7)
+    throw Error("This example load requires a compatible cargo aircraft.");
+  }
+  if(G.requests.some(x=>x.med===!!a.med&&x.status!=="DONE"))
+   throw Error("Complete the existing request first.");
+
+  r={
+   id:"F"+(++G.seq),plane:p.id,med:!!a.med,
+   status:"REQUESTED",ppr:false,
+   need:a.med?{patient:1}:{pallet:4,team:3},
+   origin:a.med?"FOS LANTERN":"MAIN BASE",
+   destination:a.med?"HOSPITAL":"FOS LANTERN",
+   alternate:"",intent:""
+  };
+  G.requests.push(r);
+  p.status="REQUESTED";
+  log("Airlift request "+r.id+" submitted.","OPS");
+  return;
+
+ case "ALLOCATE":
+  role("CAOC");
+  r=request(a.id);
+  if(!r||r.status!=="REQUESTED")throw Error("Request not ready.");
+  r.status="ALLOCATED";
+  plane(r.plane).status="ALLOCATED";
+  log("CAOC allocated "+r.plane+" to "+r.id,"CAOC");
+  return;
+
+ case "LOAD":
+  r=request(a.id);
+  if(!r||r.status!=="ALLOCATED")throw Error("Aircraft not allocated.");
+  role(r.med?"MEDCOM":"MOB");
+  p=plane(r.plane);
+  if(!Object.hasOwn(r.need,a.kind))
+   throw Error("Counter does not belong on this request.");
+  if(p.load.length>=p.capacity)throw Error("Aircraft full.");
+  if(p.load.filter(x=>x===a.kind).length>=r.need[a.kind])
+   throw Error("That counter requirement is already filled.");
+  if(a.kind!=="patient"){
+   if(G.home[a.kind]<=0)throw Error("No counters available at origin.");
+   G.home[a.kind]--;
+  }
+  p.load.push(a.kind);
+  log("Loaded "+a.kind+" on "+p.name,actor);
+  return;
+
+ case "UNLOAD":
+  r=request(a.id);
+  if(!r||r.status!=="ALLOCATED")throw Error("Loading is locked.");
+  role(r.med?"MEDCOM":"MOB");
+  p=plane(r.plane);
+  if(a.slot<0||a.slot>=p.load.length)throw Error("Empty slot.");
+  const removed=p.load.splice(a.slot,1)[0];
+  if(removed!=="patient")G.home[removed]++;
+  log("Returned "+removed+" to origin.",actor);
+  return;
+
+ case "ATO":
+  r=request(a.id);
+  if(!r||r.status!=="ALLOCATED")throw Error("Allocation required.");
+  role(r.med?"MEDCOM":"MOB");
+  p=plane(r.plane);
+  for(const [kind,qty] of Object.entries(r.need)){
+   if(p.load.filter(x=>x===kind).length!==qty)
+    throw Error("Load all required counters before ATO submission.");
+  }
+  if(!a.alternate||!a.intent)throw Error("Complete alternate and intent.");
+  r.alternate=a.alternate;
+  r.intent=a.intent;
+  r.status="ATO";
+  p.status="ATO";
+  log("ATO package submitted for "+r.id,actor);
+  return;
+
+ case "PPR":
+  role("CAOC");
+  r=request(a.id);
+  if(!r||r.status!=="ATO")throw Error("ATO package unavailable.");
+  if(!G.review.access)throw Error("Political access review required.");
+  if(r.plane==="C5"&&r.destination==="FOS LANTERN")
+   throw Error("C-5 landing at a FOS requires additional instructor adjudication.");
+  r.ppr=true;
+  r.status="CLEARED";
+  plane(r.plane).status="CLEARED";
+  log("CAOC cleared flight "+r.id+" with simulated PPR.","CAOC");
+  return;
+
+ case "SPACE":
+  role("SPACE");
+  if(G.space!=="OPEN")throw Error("Assessment already assigned.");
+  G.space="QUEUED";
+  log("CSpOC support report queued.","CSpOC");
+  return;
+
+ case "TRIAGE":
+  role("MEDCOM");
+  if(G.triage!=="OPEN")throw Error("Triage already assigned.");
+  G.triage="QUEUED";
+  log("MEDCOM triage queued.","MEDCOM");
+  return;
+
+ case "TASK":
+  role("MOB");
+  if(![1,8].includes(a.i))
+   throw Error("Official task requirements have not been verified for this item.");
+  if(G.tasksDone.includes(a.i)||G.tasksQueued.includes(a.i))
+   throw Error("Task already addressed.");
+  if(a.i===8&&!G.tasksDone.includes(1))
+   throw Error("Complete the Power practice step first.");
+  if(G.fos.pallet<1||G.fos.team<1)
+   throw Error("More resources must arrive at FOS.");
+  G.fos.pallet--;
+  G.fos.team--;
+  G.tasksQueued.push(a.i);
+  log("Queued practice task: "+TASKS[a.i],"MOB");
+  return;
+
+ case "VERIFY":
+  role("MOB");
+  if(G.answered.length!==10||
+   !G.tasksDone.includes(1)||
+   !G.tasksDone.includes(8)||
+   G.space!=="COMPLETE")
+   throw Error("Finish assessment, site tasks and space support.");
+  G.verified=true;
+  log("FOS practice objectives verified.","MOB");
+  return;
+
+ default:
+  throw Error("Unknown action.");
+ }
+}
+
+function driveAI(){
+ if(!G||G.phase!=="PLAN"||G.done)return;
+
+ for(let pass=0;pass<35;pass++){
+  let changed=false;
+  const ai=(type,arg={})=>{
+   try{apply(type,arg,"AI");changed=true}catch(e){}
+  };
+
+  if(G.role!=="SPACE"&&G.space==="OPEN")ai("SPACE");
+
+  if(G.role!=="MEDCOM"){
+   if(G.triage==="OPEN")ai("TRIAGE");
+   if(G.triage==="COMPLETE"&&G.patients.fos>0&&plane("MED").status==="AVAILABLE")
+    ai("REQUEST",{id:"MED",med:true});
+   const r=G.requests.find(x=>x.med&&x.status==="ALLOCATED");
+   if(r){
+    if(!plane("MED").load.length)ai("LOAD",{id:r.id,kind:"patient"});
+    if(plane("MED").load.length)ai("ATO",{id:r.id,alternate:"MAIN BASE",intent:"Medical transfer"});
+   }
+  }
+
+  if(G.role!=="MOB"){
+   if(G.asked.length<5||(G.answered.length>=5&&G.fos.team>=2&&G.asked.length<10)){
+    const i=RFIS.findIndex((_,j)=>!G.asked.includes(j));
+    if(i>=0)ai("RFI",{i});
+   }
+
+   let r=G.requests.find(x=>!x.med&&x.status!=="DONE");
+   if(!r&&G.fos.team<2&&plane("C17").status==="AVAILABLE")
+    ai("REQUEST",{id:"C17",med:false});
+
+   r=G.requests.find(x=>!x.med&&x.status==="ALLOCATED");
+   if(r){
+    const p=plane(r.plane);
+    for(const kind of ["pallet","team"]){
+     if(p.load.filter(x=>x===kind).length<r.need[kind])
+      ai("LOAD",{id:r.id,kind});
+    }
+    if(p.load.length===7)
+     ai("ATO",{id:r.id,alternate:"MAIN BASE",intent:"Deliver resources"});
+   }
+
+   if(G.fos.pallet>0&&G.fos.team>0&&!G.tasksDone.includes(1)&&!G.tasksQueued.includes(1))
+    ai("TASK",{i:1});
+
+   if(G.tasksDone.includes(1)&&G.fos.pallet>0&&G.fos.team>0&&
+      !G.tasksDone.includes(8)&&!G.tasksQueued.includes(8))
+    ai("TASK",{i:8});
+
+   if(G.answered.length===10&&G.tasksDone.includes(1)&&G.tasksDone.includes(8)&&
+      G.space==="COMPLETE"&&!G.verified)
+    ai("VERIFY");
+  }
+
+  if(G.role!=="CAOC"){
+   let r=G.requests.find(x=>x.status==="REQUESTED");
+   if(r)ai("ALLOCATE",{id:r.id});
+   r=G.requests.find(x=>x.status==="ATO");
+   if(r)ai("PPR",{id:r.id});
+  }
+
+  if(!changed)break;
+ }
+}
+
+function advance(){
+ if(!G||flightAnimating)return;
+ if(G.done){setTab("AAR");return;}
+
+ if(G.phase==="BRIEF"){
+  if(!G.review.orders||!G.review.access){
+   notify("Review the mission orders and political access before planning.");
+   return;
+  }
+  G.phase="PLAN";
+  tab=G.role;
+  driveAI();
+  render();save(false);
+  return;
+ }
+
+ if(G.phase==="REVIEW"){
+  G.turn++;
+  G.phase="PLAN";
+  driveAI();
+  log("New planning turn opened.","GM");
+  render();save(false);
+  return;
+ }
+
+ if(G.phase!=="PLAN")return;
+ driveAI();
+
+ for(const i of G.asked){
+  if(!G.answered.includes(i)){
+   G.answered.push(i);
+   G.results[i]="GM EXERCISE RESPONSE RECEIVED";
+   log("RFI response received: "+RFIS[i],"GM");
+  }
+ }
+
+ if(G.space==="QUEUED"){
+  G.space="COMPLETE";
+  log("CSpOC report delivered.","CSpOC");
+ }
+ if(G.triage==="QUEUED"){
+  G.triage="COMPLETE";
+  log("Triage complete.","MEDCOM");
+ }
+ for(const i of G.tasksQueued){
+  G.tasksDone.push(i);
+  log("Practice task resolved: "+TASKS[i],"GM");
+ }
+ G.tasksQueued=[];
+
+ G.moving=G.requests.filter(x=>x.status==="CLEARED").map(x=>x.id);
+ G.phase="EXECUTION";
+ render();
+
+ if(G.moving.length){
+  flightAnimating=true;
+  notify("Approved aircraft departing. Follow the movement on the board.");
+  setTimeout(finishExecution,2800);
+ }else{
+  finishExecution();
+ }
+}
+
+function finishExecution(){
+ if(!G)return;
+ for(const r of G.requests.filter(x=>x.status==="CLEARED")){
+  const p=plane(r.plane);
+  if(r.med){
+   if(G.patients.fos>0&&G.patients.hospital<G.patients.beds){
+    G.patients.fos--;
+    G.patients.hospital++;
+    log("Medical patient received at hospital.","MEDCOM");
+   }
+  }else{
+   for(const kind of p.load)G.fos[kind]++;
+   log(p.name+" landed and downloaded resources at FOS.","CAOC");
+  }
+  r.status="DONE";
+  p.status="AVAILABLE";
+  p.load=[];
+ }
+ G.moving=[];
+ flightAnimating=false;
+ G.phase="REVIEW";
+ if(G.answered.length===10&&G.verified&&G.space==="COMPLETE"&&G.patients.hospital>0){
+  G.done=true;
+  G.phase="SUCCESS";
+  log("Practice mission requirements completed.","GM");
+  tab="AAR";
+ }
+ render();save(false);
+}
+
+function begin(){
+ G=newState(chosen);
+ tab="BRIEF";
+ $("start").classList.add("hidden");
+ log("Mission activated. "+chosen+" is human-controlled.");
+ render();save(false);
+}
+function choose(role){
+ chosen=role;
+ $("roleChoices").innerHTML=ROLES.map(x=>`
+ <button class="${x===chosen?'selected':''}" onclick="choose('${x}')">
+  <strong>${x}</strong><small>${x===chosen?'SELECTED':'AI WHEN VACANT'}</small>
+ </button>`).join("");
+}
+function save(show){
+ if(!G)return;
+ try{
+  if(G.phase==="EXECUTION")return;
+  localStorage.setItem(KEY,JSON.stringify(G));
+  if(show)notify("OPS mission saved in this browser.");
+ }catch(e){if(show)notify("Browser storage is unavailable.");}
+}
+function resume(){
+ try{
+  const x=JSON.parse(localStorage.getItem(KEY));
+  if(!x||!x.aircraft||!x.role)throw Error();
+  G=x;
+  if(G.phase==="EXECUTION")G.phase="REVIEW";
+  G.moving=[];
+  tab=G.role;
+  $("start").classList.add("hidden");
+  render();
+ }catch(e){notify("No valid mission save found.");}
+}
+function resetGame(){
+ if(!confirm("Restart your OPS practice mission?"))return;
+ G=null;
+ $("start").classList.remove("hidden");
+}
+function switchStation(){
+ if(!G||G.done||flightAnimating)return;
+ G.role=ROLES[(ROLES.indexOf(G.role)+1)%4];
+ tab=G.role;
+ log("Human control transferred to "+G.role,"MISSION");
+ driveAI();render();save(false);
+}
+function setTab(x){tab=x;render();}
+function help(){$("help").classList.remove("hidden");}
+function dice(){
+ const d=1+Math.floor(Math.random()*6);
+ if(G){log("Practice D6 roll: "+d,"GM");render();}
+ notify("🎲 D6 RESULT: "+d);
+}
+function reviewPart(k){
+ G.review[k]=true;
+ log("Reviewed "+k,"MISSION");
+ render();save(false);
+}
+function selectToken(k){selectedToken=k;render();}
+function clickSlot(id,n){
+ const r=request(id);
+ const p=plane(r.plane);
+ if(n<p.load.length)act("UNLOAD",{id,slot:n});
+ else if(n===p.load.length)act("LOAD",{id,kind:selectedToken});
+ else notify("Load counters from the first empty slot.");
+}
+function dragToken(e,k){
+ selectedToken=k;
+ e.dataTransfer.setData("text/plain",k);
+}
+function dropToken(e,id,n){
+ e.preventDefault();
+ selectedToken=e.dataTransfer.getData("text/plain")||selectedToken;
+ clickSlot(id,n);
+}
+
+function loading(r){
+ const p=plane(r.plane);
+ const own=mine(r.med?"MEDCOM":"MOB");
+ return `<div class="card">
+ <h3>${p.name} • ${r.status}</h3>
+ <p>Required: ${Object.entries(r.need).map(([k,v])=>v+" "+k).join(" • ")}</p>
+ ${r.status==="ALLOCATED"?`
+ <div class="two">
+ ${Object.keys(r.need).map(k=>`
+  <button class="counter ${selectedToken===k?'selected':''}"
+    draggable="${own}" ondragstart="dragToken(event,'${k}')"
+    onclick="selectToken('${k}')" ${own?'':'disabled'}>
+   ${k.toUpperCase()}
+  </button>`).join("")}
+ </div>
+ <p>Drag a counter to a slot, or select it and click a slot.</p>`:""}
+ <div class="slots">
+ ${Array.from({length:p.capacity},(_,i)=>`
+ <button class="slot ${p.load[i]?'filled':''}"
+   ${own&&r.status==="ALLOCATED"?'':'disabled'}
+   ondragover="event.preventDefault()"
+   ondrop="dropToken(event,'${r.id}',${i})"
+   onclick="clickSlot('${r.id}',${i})">
+   ${p.load[i]||"EMPTY"}<br><small>${i+1}</small>
+ </button>`).join("")}
+ </div>
+ ${r.status==="ALLOCATED"?`
+  <label>Alternate airfield</label>
+  <select id="alt_${r.id}">
+   <option value="MAIN BASE">MAIN BASE</option>
+  </select>
+  <label>Arrival intent</label>
+  <select id="intent_${r.id}">
+   <option value="${r.med?'Medical transfer':'Deliver resources'}">
+    ${r.med?'Medical transfer':'Deliver resources'}
+   </option>
+  </select>
+  <button class="primary wide" ${own?'':'disabled'}
+   onclick="act('ATO',{id:'${r.id}',
+   alternate:$('alt_${r.id}').value,
+   intent:$('intent_${r.id}').value})">
+   SUBMIT FLIGHT PLAN / ATO
+  </button>`:""}
+ ${r.status==="CLEARED"?'<p class="good">✓ CLEARED FOR EXECUTION</p>':''}
+ </div>`;
+}
+
+function briefing(){
+ return `<h2>MISSION BRIEFING</h2>
+ <div class="card">
+ <h3>Mission orders</h3>
+ <p>Practice objective: assess and establish FOS LANTERN, request required support, and coordinate airlift, space, and medical support.</p>
+ <button class="primary wide" ${G.review.orders?'disabled':''}
+ onclick="reviewPart('orders')">
+ ${G.review.orders?'✓ ACKNOWLEDGED':'ACKNOWLEDGE MISSION ORDER'}
+ </button></div>
+ <div class="card">
+ <h3>Political assessment</h3>
+ <p>In this fictional practice scenario, the selected route is considered permitted. Real OPS access and overflight decisions must use the supplied exercise assessment.</p>
+ <button class="primary wide" ${G.review.access?'disabled':''}
+ onclick="reviewPart('access')">
+ ${G.review.access?'✓ ACKNOWLEDGED':'ACKNOWLEDGE ACCESS REVIEW'}
+ </button></div>`;
+}
+
+function mob(){
+ let h=`<h2>MOB / FOS OPERATIONS</h2>
+ <p>Select your first five RFIs. The simulated GM returns responses during turn execution.</p>
+ <div class="rfis">`;
+ RFIS.forEach((name,i)=>{
+  const disabled=!mine("MOB")||G.asked.includes(i)||
+   (G.asked.length>=5&&(G.answered.length<5||G.fos.team<2));
+  h+=`<button ${disabled?'disabled':''} onclick="act('RFI',{i:${i}})">
+  ${G.answered.includes(i)?'✓':G.asked.includes(i)?'⌛':'+'} ${name}
+  </button>`;
+ });
+ h+=`</div><div class="card"><h3>GM RFI RESPONSE RECORD</h3>`;
+ G.answered.forEach(i=>{
+  h+=`<div class="row"><span>${RFIS[i]}</span><b class="good">RECEIVED</b></div>`;
+ });
+ h+=`</div><div class="card"><h3>AIRLIFT REQUIREMENT</h3>
+ <p>Origin: ${G.home.pallet} pallets / ${G.home.team} teams</p>
+ <p>FOS: ${G.fos.pallet} pallets / ${G.fos.team} teams</p>
+ <select id="cargoPlane">
+ <option value="C17">C-17 • ${plane("C17").status}</option>
+ <option value="C130">C-130 • ${plane("C130").status}</option>
+ <option value="C5">C-5 • ${plane("C5").status}</option>
+ </select>
+ <button class="primary wide" ${mine("MOB")?'':'disabled'}
+ onclick="act('REQUEST',{id:$('cargoPlane').value,med:false})">
+ REQUEST MOBILITY AIRCRAFT
+ </button></div>`;
+
+ for(const r of G.requests.filter(x=>!x.med)){
+  h+=r.status==="DONE"?
+   '<div class="card good">✓ Transport mission complete.</div>':loading(r);
+ }
+ h+=`<h3>FOS CAPABILITY TASKS</h3>
+ <p>All 16 task categories are displayed. Items without verified adjudication requirements remain locked.</p>
+ <div class="tasks">`;
+ TASKS.forEach((name,i)=>{
+  const validated=[1,8].includes(i);
+  const can=validated&&mine("MOB")&&!G.tasksDone.includes(i)&&
+   !G.tasksQueued.includes(i)&&G.fos.pallet>=1&&G.fos.team>=1&&
+   (i!==8||G.tasksDone.includes(1));
+  h+=`<button ${can?'':'disabled'} onclick="act('TASK',{i:${i}})">
+  ${G.tasksDone.includes(i)?'✓ ':G.tasksQueued.includes(i)?'⌛ ':'○ '}
+  ${i+1}. ${name}<br>
+  <small>${validated?'Practice step':'Detailed rules not yet verified'}</small>
+  </button>`;
+ });
+ h+=`</div><button class="primary wide" ${mine("MOB")&&!G.verified?'':'disabled'}
+ onclick="act('VERIFY')">VERIFY FOS PRACTICE OBJECTIVE</button>`;
+ return h;
+}
+
+function caoc(){
+ let h=`<h2>CAOC / CFACC</h2>
+ <p>Prioritize mobility requests, allocate aircraft, and inspect ATO submissions before issuing simulated PPR.</p>`;
+ G.aircraft.forEach(p=>{
+  h+=`<div class="row"><span>${p.name}</span><b>${p.status}</b></div>`;
+ });
+ G.requests.forEach(r=>{
+  h+=`<div class="card"><h3>${r.id} • ${r.plane}</h3>
+  <p>Status: ${r.status}</p>
+  <p>${r.origin} → ${r.destination}</p>`;
+  if(r.status==="REQUESTED")
+   h+=`<button class="primary wide" ${mine("CAOC")?'':'disabled'}
+   onclick="act('ALLOCATE',{id:'${r.id}'})">APPROVE ALLOCATION</button>`;
+  if(r.status==="ATO")
+   h+=`<div class="hint">Alternate: ${escapeHTML(r.alternate)}<br>
+   Intent: ${escapeHTML(r.intent)}</div>
+   <button class="primary wide" ${mine("CAOC")?'':'disabled'}
+   onclick="act('PPR',{id:'${r.id}'})">ISSUE PPR / CLEAR FLIGHT</button>`;
+  if(r.status==="DONE")h+='<p class="good">✓ FLIGHT COMPLETED</p>';
+  h+="</div>";
+ });
+ return h;
+}
+
+function space(){
+ return `<h2>CSpOC / SPACE SUPPORT</h2>
+ <p>Manage a simplified communications and space-support assessment.</p>
+ <div class="two">
+ ${["LEO COLLECTION","MEO TIMING","GEO COMMS","SPACE AWARENESS"].map(x=>
+ `<div class="card"><span class="gold">◉</span> ${x}</div>`).join("")}
+ </div>
+ <div class="row"><span>Support report</span><b>${G.space}</b></div>
+ <button class="primary wide"
+ ${mine("SPACE")&&G.space==="OPEN"?'':'disabled'}
+ onclick="act('SPACE')">QUEUE SUPPORT ASSESSMENT</button>`;
+}
+
+function medcom(){
+ let h=`<h2>MEDCOM OPERATIONS</h2>
+ <p>Manage simplified patient accountability, triage and medical aircraft coordination.</p>
+ <div class="row"><span>Patients at FOS</span><b>${G.patients.fos}</b></div>
+ <div class="row"><span>Patients at hospital</span><b>${G.patients.hospital}</b></div>
+ <div class="row"><span>Available hospital beds</span><b>${G.patients.beds-G.patients.hospital}</b></div>
+ <div class="row"><span>Triage</span><b>${G.triage}</b></div>
+ <button class="primary wide" ${mine("MEDCOM")&&G.triage==="OPEN"?'':'disabled'}
+ onclick="act('TRIAGE')">QUEUE TRIAGE</button>
+ <button class="wide" ${mine("MEDCOM")&&G.triage==="COMPLETE"?'':'disabled'}
+ onclick="act('REQUEST',{id:'MED',med:true})">REQUEST MEDICAL AIRCRAFT</button>`;
+ for(const r of G.requests.filter(x=>x.med))
+  h+=r.status==="DONE"?'<div class="card good">✓ Patient delivered.</div>':loading(r);
+ return h;
+}
+
+function aar(){
+ return `<h2>MISSION COMMANDER REVIEW</h2>
+ <div class="card"><h3>Turn ${G.turn}</h3>
+ <p>${G.done?'Practice mission complete':'Mission in progress'}</p></div>
+ <div class="row">RFI responses<b>${G.answered.length}/10</b></div>
+ <div class="row">FOS tasks<b>${G.tasksDone.length}/16</b></div>
+ <div class="row">Space report<b>${G.space}</b></div>
+ <div class="row">Patient transfers<b>${G.patients.hospital}</b></div>
+ <div class="row">FOS verification<b>${G.verified?'YES':'NO'}</b></div>
+ <div class="label" style="margin-top:15px">ACTION HISTORY</div>
+ ${G.logs.slice(0,20).map(x=>`<div class="row">
+ <small>T${x.turn} ${escapeHTML(x.station)}: ${escapeHTML(x.message)}</small>
+ </div>`).join("")}`;
+}
+
+function coach(){
+ if(G.phase==="BRIEF")return "Acknowledge mission orders and political access, then begin planning.";
+ if(G.phase==="EXECUTION")return "Aircraft are moving. Wait for the turn to resolve.";
+ if(G.phase==="REVIEW")return "Review deliveries and GM responses. Then begin the next planning turn.";
+ if(G.role==="MOB"){
+  if(G.asked.length<5)return "Choose your initial five RFIs.";
+  let r=G.requests.find(x=>!x.med&&x.status!=="DONE");
+  if(!r&&G.fos.team<2)return "Request a compatible mobility aircraft.";
+  if(r&&r.status==="ALLOCATED")return "Select counters, fill the aircraft slots and submit the ATO.";
+  if(G.fos.team>=2&&G.asked.length<10)return "Complete the follow-on RFI assessment.";
+  if(!G.tasksDone.includes(1))return "Work toward the Power practice task.";
+  if(!G.tasksDone.includes(8))return "Work toward the Airfield Operations practice task.";
+  return "Verify FOS readiness when all required supporting actions are complete.";
+ }
+ if(G.role==="CAOC")return "Approve pending aircraft requests and clear complete flight packages.";
+ if(G.role==="SPACE")return "Queue your space-support report and execute a turn.";
+ return "Queue triage, request medical support, load the patient and submit the plan.";
+}
+
+function render(){
+ if(!G)return;
+ $("hRole").textContent=G.role;
+ $("hTurn").textContent=G.turn;
+ $("hPhase").textContent=G.phase;
+
+ const goals=[
+  G.review.orders&&G.review.access,
+  G.answered.length>=5,
+  G.tasksDone.includes(1),
+  G.tasksDone.includes(8),
+  G.space==="COMPLETE",
+  G.patients.hospital>0,
+  G.verified
+ ];
+ const percent=Math.round(goals.filter(Boolean).length/goals.length*100);
+ $("hProgress").textContent=percent+"%";
+ $("progressBar").style.width=percent+"%";
+ $("objectives").innerHTML=[
+  "Mission/access review","Initial RFI responses",
+  "Power practice step","Airfield Operations practice step",
+  "Space support","Medical movement","FOS verified"
+ ].map((name,i)=>`<div class="row">
+ <span>${name}</span><b class="${goals[i]?'good':''}">${goals[i]?'✓':'○'}</b>
+ </div>`).join("");
+
+ $("turnButton").textContent=G.phase==="BRIEF"?"BEGIN PLANNING":
+  G.phase==="REVIEW"?"NEXT TURN":
+  G.phase==="EXECUTION"?"FLIGHT IN PROGRESS":
+  G.done?"VIEW DEBRIEF":"EXECUTE TURN";
+ $("turnButton").disabled=G.phase==="EXECUTION";
+
+ $("roster").innerHTML=ROLES.map(r=>`<div class="row">
+ <b>${r}</b><span class="tag ${G.role===r?'gold':'good'}">
+ ${G.role===r?'YOU':'AI'}</span></div>`).join("");
+ $("coach").textContent=coach();
+ $("tabs").innerHTML=["BRIEF","BOARD",...ROLES,"AAR"].map(t=>
+ `<button class="${tab===t?'active':''}" onclick="setTab('${t}')">${t}</button>`).join("");
+
+ $("work").innerHTML=
+  tab==="BRIEF"?briefing():
+  tab==="MOB"?mob():
+  tab==="CAOC"?caoc():
+  tab==="SPACE"?space():
+  tab==="MEDCOM"?medcom():
+  tab==="AAR"?aar():
+  `<h2>OPS MISSION BOARD</h2>
+   <div class="card"><h3>MAIN BASE</h3>
+   <p>${G.home.pallet} pallets / ${G.home.team} teams available</p></div>
+   <div class="card"><h3>FOS LANTERN</h3>
+   <p>${G.fos.pallet} pallets / ${G.fos.team} teams on site</p></div>`;
+
+ if(ROLES.includes(tab)&&tab!==G.role){
+  $("work").insertAdjacentHTML("afterbegin",
+   '<div class="hint">AI operates this station. You can inspect it, or switch your human position.</div>');
+ }
+
+ $("logs").innerHTML=G.logs.slice(0,18).map(x=>`
+ <div><b>T${x.turn} ${escapeHTML(x.station)}</b>
+ ${escapeHTML(x.message)}</div>`).join("");
+
+ renderMap();
+}
+
+function renderMap(){
+ const svg=$("map");
+ const ns="http://www.w3.org/2000/svg";
+ svg.replaceChildren();
+ const el=(name,attrs={},text)=>{
+  let e=document.createElementNS(ns,name);
+  Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));
+  if(text!==undefined)e.textContent=text;
+  return e;
+ };
+
+ svg.append(el("path",{
+  d:"M0 0H220L294 82L242 170L120 198L0 178Z M670 0H900V170L800 155L700 192L630 98Z",
+  fill:"#577465",opacity:".5"
+ }));
+
+ for(let y=0;y<8;y++){
+  for(let x=0;x<13;x++){
+   let cx=35+x*69+(y%2?34:0);
+   let cy=41+y*66;
+   if(cx>900)continue;
+   let points=Array.from({length:6},(_,i)=>{
+    let a=i*Math.PI/3-Math.PI/6;
+    return (cx+37*Math.cos(a)).toFixed(1)+","+
+     (cy+37*Math.sin(a)).toFixed(1);
+   }).join(" ");
+   const id=x+"-"+y;
+   const h=el("polygon",{
+    points,class:"hex "+(activeHex===id?"active":"")
+   });
+   h.addEventListener("click",()=>{
+    activeHex=id;
+    $("mapInfo").textContent="Selected exercise hex "+id;
+    renderMap();
+   });
+   svg.append(h);
+  }
+ }
+
+ svg.append(el("path",{
+  d:"M180 335 Q330 105 510 245",
+  class:"flightpath"
+ }));
+
+ function site(x,y,title,color,screen,details){
+  const g=el("g",{class:"site",tabindex:0,role:"button"});
+  g.append(el("circle",{cx:x,cy:y,r:25,fill:color}));
+  g.append(el("text",{x,y:y+45},title));
+  const select=()=>{
+   $("mapInfo").textContent=details();
+   setTab(screen);
+  };
+  g.addEventListener("click",select);
+  g.addEventListener("keydown",e=>{if(e.key==="Enter")select()});
+  svg.append(g);
+ }
+
+ site(180,335,"MAIN BASE", "#65d6ff","BOARD",
+  ()=>`${G.home.pallet} pallets and ${G.home.team} teams remaining`);
+ site(510,245,"FOS LANTERN",G.verified?"#6ff1b7":"#f6c978","MOB",
+  ()=>`${G.fos.pallet} pallets and ${G.fos.team} teams on site`);
+ site(760,385,"HOSPITAL","#6ff1b7","MEDCOM",
+  ()=>`${G.patients.hospital} patients at hospital`);
+
+ G.aircraft.forEach((p,i)=>{
+  const g=el("g",{
+   class:"airtoken"+(G.moving.some(id=>request(id)?.plane===p.id)?" inflight":"")
+  });
+  if(!G.moving.some(id=>request(id)?.plane===p.id)){
+   g.setAttribute("transform",`translate(${190+i*56} ${326+i*12})`);
+  }
+  g.append(el("text",{x:0,y:0},"✈"));
+  g.addEventListener("click",()=>{
+   $("mapInfo").textContent=p.name+" / "+p.status;
+   setTab(p.id==="MED"?"MEDCOM":"CAOC");
+  });
+  svg.append(g);
+ });
+}
+
+choose("MOB");
+</script>
+</body>
+</html>
