@@ -55,14 +55,14 @@ function game(mode,diff){
    {id:"C5-A",type:"C5",name:"C-5 Galaxy",at:"MOB",status:"READY",load:{},landed:0,until:0}
   ],
   plans:[],events:[],effects:[],log:[],flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
-  ratings:{operations:0,decisions:0,logistics:0},sound:false,history:[],
+  ratings:{operations:0,decisions:0,logistics:0},support:{space:0,medical:0,requested:{}},sound:false,history:[],
   objective:{"name":"Activate and sustain forward operating sites","target":25}
  };
 }
 function log(msg,who="OPS"){if(!S)return;S.log.unshift({turn:S.turn,who,msg,time:new Date().toLocaleTimeString()});S.log=S.log.slice(0,120)}
 function notify(msg){const old=$("toastpop");if(old)old.remove();const d=document.createElement("div");d.id="toastpop";d.className="toast";d.textContent=msg;document.body.appendChild(d);clearTimeout(toastTimer);toastTimer=setTimeout(()=>d.remove(),3800)}
 function save(show=false){if(!S)return;try{localStorage.setItem(KEY,JSON.stringify(S));if(show)notify("Mission saved on this device.")}catch(e){notify("Browser save unavailable.")}}
-function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
+function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
 function start(mode,diff){
  S=game(mode,diff);modal="";selected=0;activePlane="C130-A";tab="map";view="map";cargo={people:1,forklift:1};
  log("Mission initialized: "+mode.toUpperCase()+" / "+diff.toUpperCase()+".","SIM GM");
@@ -238,6 +238,7 @@ function effect(e){
  else if(k==="medical"){S.dp+=2;log("Medical surge generated 2 practice DP.","SIM OPFOR")}
 }
 function endTurn(){
+ S.support??={space:0,medical:0,requested:{}};
  if(moving)return notify("Finish the current flight before ending the turn.");
  if(S.finished)return notify("Mission complete. See after-action review.");
  if(!S.events.some(e=>e.turn===S.turn))drawCards();
@@ -257,11 +258,26 @@ function endTurn(){
  S.fleet.forEach(p=>{if(p.status==="DAMAGED"&&p.until<=S.turn){p.status="AT FOS";log(p.name+" repaired; ready for departure from FOS.","SIM GM")}});
  if(S.mode==="computer"){
    const pressure={cadet:1,standard:2,veteran:4}[S.diff]||2;
-   const target=S.sites.reduce((a,b)=>b.tasks.length>a.tasks.length?b:a,S.sites[0]);
+   const target=S.sites.reduce((a,b)=>{
+     const score=x=>x.tasks.length*4+x.people/5+x.rfis.length+x.fighters*5;
+     return score(b)>score(a)?b:a;
+   },S.sites[0]);
    S.opfor+=pressure;
-   if(rnd(6)<=pressure){target.blockedUntil=Math.max(target.blockedUntil,S.turn+1);log("OPFOR AI concentrated disruption against "+target.name+" because of increased FOS capability.","SIM OPFOR")}
-   else log("OPFOR AI maintains watch on "+target.name+"; no new disruption.","SIM OPFOR");
+   const attack=rnd(6)<=pressure,protectedSite=target.tasks.includes(5)&&target.tasks.includes(4);
+   if(attack&&S.support.space>=S.turn){
+     log("Computer CSpOC warning disrupted OPFOR targeting of "+target.name+".","SIM CSpOC");
+     S.training+=4;S.support.space=0;
+   }else if(attack&&protectedSite&&rnd(2)===1){
+     log("Computer selected "+target.name+" for disruption, but site security reduced the effect.","SIM OPFOR");
+     S.training+=3;
+   }else if(attack){
+     target.blockedUntil=Math.max(target.blockedUntil,S.turn+1);
+     S.opfor+=2;
+     if(target.fuel>0&&rnd(3)===1){target.fuel--;log("OPFOR interrupted one practice fuel token at "+target.name+".","SIM OPFOR")}
+     else log("OPFOR targeted the highest-value site "+target.name+" and interrupted operations for a turn.","SIM OPFOR");
+   }else log("OPFOR observed "+target.name+" and preserved assets for a future disruption.","SIM OPFOR");
  }
+ if(S.support&&S.support.medical>=S.turn&&S.dp>0){const recovered=Math.min(5,S.dp);S.dp-=recovered;log("MEDCOM simulated response prevented "+recovered+" Demoralization Points.","SIM MEDCOM");S.support.medical=0}
  if(S.dp>=5){const deduct=Math.floor(S.dp/5);const already=Math.floor((S.appliedDP||0)/5);const delta=deduct-already;if(delta>0){S.mp-=delta;log("Demoralization adjustment: -"+delta+" MP (1 per 5 accumulated DP).","SCORE")}S.appliedDP=S.dp}
  S.stock.food+=0;S.phase="PLANNING";
  if(S.turn>12){S.finished=true;modal="aar"}
@@ -376,7 +392,8 @@ function renderRight(){
  return '<aside class="column right"><div class="panel"><div class="panel-head"><div><div class="micro">MISSION WORKBENCH</div><h3>COMMAND ACTIONS</h3></div></div><div class="tabs" style="margin-bottom:14px"><button data-action="tab" data-id="site" class="'+(current==="site"?"active":"")+'">FOS</button><button data-action="tab" data-id="flight" class="'+(current==="flight"?"active":"")+'">AIRLIFT</button><button data-action="tab" data-id="events" class="'+(current==="events"?"active":"")+'">GM CARDS</button><button data-action="tab" data-id="support" class="'+(current==="support"?"active":"")+'">SUPPORT</button></div>'+(current==="site"?renderSite():current==="flight"?renderFlight():current==="events"?renderEvents():renderSupport())+'</div></aside>';
 }
 function renderSupport(){
- return '<div class="micro">SUPPORT COMPONENTS</div><h2>JOINT SUPPORT</h2><div class="missioncard"><h3>CSpOC</h3><p>Coordinate space-enabling support. Source guide states that CSpOC contributes indirectly to Mission Points.</p><button class="full" data-action="support" data-id="space">REQUEST SIM CSpOC ASSESSMENT</button></div><div class="missioncard"><h3>MEDCOM</h3><p>Coordinate medical support, patient movement considerations and status reporting.</p><button class="full" data-action="support" data-id="medical">REQUEST SIM MEDCOM SUPPORT</button></div><p class="micro">These are simulated support interactions. Full CSpOC satellite positions and MEDCOM execution-workbook rules are not modeled.</p>';
+ S.support??={space:0,medical:0,requested:{}};
+ return '<div class="micro">SUPPORT COMPONENTS</div><h2>JOINT SUPPORT</h2><div class="missioncard"><h3>CSpOC</h3><p>Space warning and synchronization: in computer mode, a timely CSpOC request can counter one simulated OPFOR disruption.</p><div class="status '+(S.support.space>=S.turn?"success":"")+'">'+(S.support.space>=S.turn?"SPACE SUPPORT ACTIVE":"AWAITING REQUEST")+'</div><button class="full" data-action="support" data-id="space" '+(S.support.requested.space===S.turn?"disabled":"")+'>REQUEST SIM CSpOC ASSESSMENT</button></div><div class="missioncard"><h3>MEDCOM</h3><p>Medical coordination can mitigate up to five practice Demoralization Points in the following turn.</p><div class="status '+(S.support.medical>=S.turn?"success":"")+'">'+(S.support.medical>=S.turn?"MEDICAL SUPPORT ACTIVE":"AWAITING REQUEST")+'</div><button class="full" data-action="support" data-id="medical" '+(S.support.requested.medical===S.turn?"disabled":"")+'>REQUEST SIM MEDCOM SUPPORT</button></div><p class="micro">These are explicitly simulated support mechanics, not official component execution rules.</p>';
 }
 function aarHTML(){
  const timeline=S.history.slice(-12).map(x=>'<div class="row" style="padding:7px 0;border-bottom:1px solid #29475a">TURN '+x.turn+' <strong class="gold">'+x.mp+' MP</strong><span class="mute">'+x.training+' training pts</span></div>').join("");
@@ -441,7 +458,13 @@ function action(e){
  else if(a==="cards")drawCards();
  else if(a==="end-turn")endTurn();
  else if(a==="dice")rollDice(Number(target.dataset.sides));
- else if(a==="support"){log("SIM "+id.toUpperCase()+" assessment: Support request acknowledged. Detailed official component actions require exercise sheets.","SIM GM");S.training+=2;save();render();notify(id+" response logged.")}
+ else if(a==="support"){
+   S.support??={space:0,medical:0,requested:{}};
+   if(S.support.requested[id]===S.turn)return notify("This support function already responded during this turn.");
+   S.support.requested[id]=S.turn;S.support[id]=S.turn+1;
+   log("SIM "+id.toUpperCase()+" support approved through next turn. "+(id==="space"?"Suppresses one computer disruption.":"Mitigates up to 5 practice DP."),"SIM GM");
+   S.training+=2;save();render();notify(id+" support window activated.");
+ }
  else if(a==="aar"){modal="aar";render()}
  else if(a==="rules"){modal="rules";render()}
  else if(a==="menu"){modal="menu";render()}
