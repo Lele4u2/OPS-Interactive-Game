@@ -9,6 +9,7 @@ const POS=[
  {id:25,name:"FOS 25",country:"Thailand",x:200,y:285}
 ];
 const HOME={x:92,y:186};
+const SIM_TARGETS=[{id:"SIM-A",name:"OPFOR Training Site Alpha",x:795,y:150},{id:"SIM-B",name:"OPFOR Training Site Bravo",x:746,y:330},{id:"SIM-C",name:"OPFOR Training Site Charlie",x:575,y:430}];
 const BOARD_BASE={x:500,y:485};
 const BOARD_SITES=[{x:260,y:790},{x:770,y:790},{x:770,y:215},{x:260,y:215}];
 function boardLocation(ref){if(ref==="MOB")return BOARD_BASE;const j=POS.findIndex(p=>p.id===ref);return BOARD_SITES[Math.max(0,j)];}
@@ -57,7 +58,7 @@ function game(mode,diff){
    {id:"C17-A",type:"C17",name:"C-17 Globemaster",at:"MOB",status:"READY",load:{},landed:0,until:0},
    {id:"C5-A",type:"C5",name:"C-5 Galaxy",at:"MOB",status:"READY",load:{},landed:0,until:0}
   ],
-  plans:[],events:[],effects:[],log:[],impact:[],strikes:[],cardChoice:{event:-1,risk:-1},flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
+  plans:[],events:[],effects:[],log:[],impact:[],strikes:[],targetId:"SIM-A",cardChoice:{event:-1,risk:-1},flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
   ratings:{operations:0,decisions:0,logistics:0},support:{space:0,medical:0,requested:{}},sound:false,history:[],
   objective:{"name":"Activate and sustain forward operating sites","target":25}
  };
@@ -224,7 +225,16 @@ function fighterSortie(){
  if(s.blockedUntil>S.turn||!s.access)return notify("Site temporarily restricted.");
  // Demo objective assumes the user selected an activated training area, not a real EXORD location.
  s.fuel--;s.ammo--;s.missile--;S.mp+=5;S.training+=15;
- log("Fighter sortie launched to simulated active objective from "+s.name+"; +5 MP under OPS sortie rule. Target eligibility not linked to an actual EXORD.","SIM GM");save();render();
+ const target=SIM_TARGETS.find(x=>x.id===S.targetId)||SIM_TARGETS[0];
+ const roll=rnd(10),result=roll>=5?"TARGET EFFECT ACHIEVED":"TARGET EFFECT UNCERTAIN";
+ S.strikes.push({turn:S.turn,site:s.id,target:target.id,roll,result});
+ if(roll>=5)S.opfor=Math.max(0,S.opfor-2);
+ S.impact.unshift({turn:S.turn,level:roll>=5?"success":"warning",text:"Simulated strike at "+target.name+": "+result+" (practice D10="+roll+"). "+(roll>=5?"Computer pressure reduced by 2.":"No OPFOR reduction; review mission planning assumptions.")});
+ S.strikeFx={x:target.x,y:target.y,id:target.id};
+ view="map";
+ log("Simulated fighter sortie from "+s.name+" to "+target.name+"; "+result+". Target eligibility is NOT linked to the actual EXORD.","SIM GM");
+ save();render();
+ setTimeout(()=>{if(S&&S.strikeFx?.id===target.id){S.strikeFx=null;render()}},3200);
 }
 function drawCards(){
  if(S.events.some(x=>x.turn===S.turn))return notify("Event and Risk Card already drawn this turn.");
@@ -316,8 +326,10 @@ function renderMap(){
  land='<path class="land" d="M565 0 L640 0 674 59 648 98 692 141 680 174 616 157 597 110 553 75Z"/><path class="land" d="M471 198 L502 226 501 276 526 301 501 344 475 316 456 272Z"/><path class="land" d="M165 215 L252 225 295 255 261 291 221 320 176 300Z"/><path class="land" d="M240 360 L364 350 411 391 391 435 311 454 247 415Z"/><path class="land" d="M650 240 L700 276 683 301 664 289Z"/>';
  const routes=S.sites.map(s=>'<path class="ring" d="M'+HOME.x+' '+HOME.y+' L'+s.x+' '+s.y+'"/>').join("");
  const sites=S.sites.map((s,i)=>'<g data-action="select-site" data-index="'+i+'" class="site '+(selected===i?"selected":"")+'" tabindex="0" role="button" aria-label="Select '+s.name+'" transform="translate('+s.x+' '+s.y+')"><circle r="17"/><text text-anchor="middle" dy="5" class="site-number">'+s.id+'</text><text text-anchor="middle" y="-31" class="sitelabel">'+s.name+'</text><text text-anchor="middle" y="34" class="sitetype">'+s.tasks.length+'/16 CAPABLE</text></g>').join("");
+ const targets=SIM_TARGETS.map(t=>'<g class="sim-target '+(S.targetId===t.id?"selected":"")+'" data-action="target-select" data-id="'+t.id+'" tabindex="0" role="button" aria-label="Select fictional training target '+t.name+'" transform="translate('+t.x+' '+t.y+')"><circle r="17"/><path d="M-21 0H21M0 -21V21" stroke-width="2" stroke="#ffce8c"/><text y="34" text-anchor="middle">'+t.id+'</text></g>').join("");
+ const blast=S.strikeFx?'<g class="strike-blast" transform="translate('+S.strikeFx.x+' '+S.strikeFx.y+')"><circle class="strike-ring" r="12"/><circle class="strike-core" r="5"/><text y="-26" text-anchor="middle">SIMULATED STRIKE</text></g>':"";
  const fleet=S.fleet.filter(p=>p.status!=="LOST"&&p.status!=="FLYING"&&p.status!=="RETURNING").map((p,i)=>{const pt=point(p.at);const x=pt.x-24+(i%2)*45,y=pt.y+40+Math.floor(i/2)*34;return '<g class="aircraftdot" role="button" tabindex="0" aria-label="Select '+p.name+'" data-action="select-plane" data-plane="'+p.id+'" transform="translate('+x+' '+y+')"><rect rx="8" width="41" height="25"/><text x="20" y="17" text-anchor="middle">✈</text></g>'}).join("");
- return '<div class="mapframe" id="mapframe"><svg viewBox="0 0 900 510" preserveAspectRatio="xMidYMid meet" aria-label="Clickable OPS operational map" role="img"><rect class="mapbg" width="900" height="510"/>'+grid+land+'<circle class="ring" cx="260" cy="290" r="220"/>'+routes+'<g class="mob" data-action="select-mob"><circle cx="'+HOME.x+'" cy="'+HOME.y+'" r="26"/><text x="'+HOME.x+'" y="'+(HOME.y+6)+'" fill="#fff" text-anchor="middle" font-weight="900" font-size="14">MOB</text></g>'+sites+fleet+'<path id="moving-route" class="route" d="" /><g id="moving-plane" transform="translate(-100 -100)" opacity="0" class="flying"><circle r="19" fill="#ffc86e"/><text text-anchor="middle" dy="6" font-size="24" fill="#112633">✈</text></g><text x="20" y="35" font-size="11" fill="#88bbc8" letter-spacing="3">PACIFIC THEATER • TRAINING SCHEMATIC / NOT TO SCALE</text><text x="835" y="489" text-anchor="end" font-size="10" fill="#88bbc8">SELECT SITE OR AIRCRAFT TOKEN</text></svg></div><div class="mapcaption"><div class="maplegend"><span><i class="dot green"></i> MOB</span><span><i class="dot gold"></i> SELECTED FOS</span><span><i class="dot"></i> OTHER FOS</span></div><span class="micro" id="flight-live-label">'+(S.flightFX?h(S.flightFX.label):"CLICK A BOARD TOKEN TO COMMAND IT")+'</span></div>';
+ return '<div class="mapframe" id="mapframe"><svg viewBox="0 0 900 510" preserveAspectRatio="xMidYMid meet" aria-label="Clickable OPS operational map" role="img"><rect class="mapbg" width="900" height="510"/>'+grid+land+'<circle class="ring" cx="260" cy="290" r="220"/>'+routes+'<g class="mob" data-action="select-mob"><circle cx="'+HOME.x+'" cy="'+HOME.y+'" r="26"/><text x="'+HOME.x+'" y="'+(HOME.y+6)+'" fill="#fff" text-anchor="middle" font-weight="900" font-size="14">MOB</text></g>'+sites+targets+blast+fleet+'<path id="moving-route" class="route" d="" /><g id="moving-plane" transform="translate(-100 -100)" opacity="0" class="flying"><circle r="19" fill="#ffc86e"/><text text-anchor="middle" dy="6" font-size="24" fill="#112633">✈</text></g><text x="20" y="35" font-size="11" fill="#88bbc8" letter-spacing="3">PACIFIC THEATER • TRAINING SCHEMATIC / NOT TO SCALE</text><text x="835" y="489" text-anchor="end" font-size="10" fill="#88bbc8">SELECT SITE OR AIRCRAFT TOKEN</text></svg></div><div class="mapcaption"><div class="maplegend"><span><i class="dot green"></i> MOB</span><span><i class="dot gold"></i> SELECTED FOS</span><span><i class="dot"></i> OTHER FOS</span></div><span class="micro" id="flight-live-label">'+(S.flightFX?h(S.flightFX.label):"CLICK A BOARD TOKEN TO COMMAND IT")+'</span></div>';
 }
 
 function boardInspector(){
@@ -458,7 +470,7 @@ function renderSite(){
    html+='<button class="task '+(done?"done":pend?"pending":"")+'" data-action="task" data-index="'+i+'" '+(done||pend?"disabled":"")+'><strong>'+(done?"✓":pend?"◷":"○")+" "+(i+1)+". "+h(R.tasks[i])+'</strong><small>'+(done?"COMPLETE":pend?"FINISH T"+pend.due:missing.length?"REQUIRES TASK "+missing.map(x=>x+1).join(", "):"CLICK TO ASSIGN")+'</small></button>';
   }html+='</div>';
  });
- html+='<div class="separator"></div><div class="status '+(valid?"success":"warn")+'">FIGHTER OPERATIONS: '+(valid?"ESTABLISH + OPERATE COMPLETE":"LOCKED — FINISH ALL ESTABLISH AND OPERATE TASKS")+'</div><div class="actions" style="margin-top:8px"><button data-action="fighter-assign" '+(!valid?"disabled":"")+'>ASSIGN FIGHTER</button><button class="primary" data-action="fighter-launch" '+(!valid?"disabled":"")+'>LAUNCH SORTIE +5 MP</button></div><p class="micro">Sortie scoring assumes a simulated activated training target; check your actual EXORD for eligible operational areas.</p>';
+ html+='<div class="separator"></div><div class="status '+(valid?"success":"warn")+'">FIGHTER OPERATIONS: '+(valid?"ESTABLISH + OPERATE COMPLETE":"LOCKED — FINISH ALL ESTABLISH AND OPERATE TASKS")+'</div><div class="actions" style="margin-top:8px"><button data-action="fighter-assign" '+(!valid?"disabled":"")+'>ASSIGN FIGHTER</button><button class="primary" data-action="fighter-launch" '+(!valid?"disabled":"")+'>LAUNCH SORTIE +5 MP</button></div><p class="micro">Training strike targets are fictional. Select SIM-A/B/C on the MISSION MAP; exercise eligibility must be validated against your EXORD.</p>';
  return html;
 }
 function renderFlight(){
@@ -606,6 +618,7 @@ function action(e){
  else if(a==="return")returnFlight();
  else if(a==="fighter-assign")deployFighter();
  else if(a==="fighter-launch")fighterSortie();
+ else if(a==="target-select"){S.targetId=id;tab="site";save();render();notify("Selected simulated target: "+id)}
  else if(a==="cards")drawCards();
  else if(a==="choose-card"){S.cardChoice??={event:-1,risk:-1};S.cardChoice[target.dataset.kind]=i;save();render()}
  else if(a==="end-turn")endTurn();
