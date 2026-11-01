@@ -3,7 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07121e">
 <title>OPS | Pacific Shield — Command Simulation</title>
-<link rel="stylesheet" href="ops-v4.css?v=4.1">
+<link rel="stylesheet" href="ops-v4.css?v=20261101-ops-v4-complete">
 </head><body>
 <div id="app"><div class="boot"><div class="bootmark">OPS<span> / </span> PACIFIC SHIELD</div><div class="bootpulse"></div><p>Initializing command simulation…</p></div></div>
 <script>
@@ -12,6 +12,6 @@ window.addEventListener("error",function(e){
  if(app && app.querySelector(".boot"))app.innerHTML='<div class="error"><h1>Mission console could not start</h1><p>'+String(e.message||"Script error").replaceAll("<","&lt;")+'</p><button onclick="location.reload()">RETRY</button></div>';
 });
 </script>
-<script src="rules.js?v=4.1"></script>
-<script src="ops-v4.js?v=4.1"></script>
+<script src="rules.js?v=20261101-ops-v4-complete"></script>
+<script src="ops-v4.js?v=20261101-ops-v4-complete"></script>
 </body></html>
