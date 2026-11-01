@@ -54,7 +54,7 @@ function game(mode,diff){
    {id:"C17-A",type:"C17",name:"C-17 Globemaster",at:"MOB",status:"READY",load:{},landed:0,until:0},
    {id:"C5-A",type:"C5",name:"C-5 Galaxy",at:"MOB",status:"READY",load:{},landed:0,until:0}
   ],
-  plans:[],events:[],effects:[],log:[],flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
+  plans:[],events:[],effects:[],log:[],cardChoice:{event:-1,risk:-1},flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
   ratings:{operations:0,decisions:0,logistics:0},support:{space:0,medical:0,requested:{}},sound:false,history:[],
   objective:{"name":"Activate and sustain forward operating sites","target":25}
  };
@@ -221,7 +221,8 @@ function fighterSortie(){
 }
 function drawCards(){
  if(S.events.some(x=>x.turn===S.turn))return notify("Event and Risk Card already drawn this turn.");
- const team=rnd(4),index=rnd(4),event=EVENTS[rnd(EVENTS.length)-1],risk=RISKS[rnd(RISKS.length)-1];
+ const team=rnd(4),index=rnd(4),event=EVENTS[S.cardChoice?.event>=0?S.cardChoice.event:rnd(EVENTS.length)-1],risk=RISKS[S.cardChoice?.risk>=0?S.cardChoice.risk:rnd(RISKS.length)-1];
+ S.cardChoice={event:-1,risk:-1};
  const draw={turn:S.turn,team,fos:index,event,risk};S.events.unshift(draw);
  S.effects.push({due:S.turn+1,site:index,kind:"event",item:event},{due:S.turn+1,site:index,kind:"risk",item:risk});
  S.flags.card=true;S.ratings.decisions+=2;beep("warn");
@@ -385,7 +386,16 @@ function renderFlight(){
 }
 function renderEvents(){
  const drew=S.events.some(x=>x.turn===S.turn);
- return '<div class="micro">SIMULATED GAME MASTER</div><h2>EVENT & RISK DESK</h2><p>One Event and one Risk Card per turn, targeting a D4-selected team and FOS. Effects begin on the following turn, as in the User Guide.</p><button class="primary full" data-action="cards" '+(drew?"disabled":"")+'>🎴 DRAW EVENT + RISK CARDS</button><div style="margin-top:10px">'+(S.events.length?S.events.slice(0,3).map(c=>'<div class="eventcard"><div class="eventtype">TURN '+c.turn+' · TEAM '+c.team+' · '+S.sites[c.fos].name+'</div><h3>'+h(c.event.name)+'</h3><p>'+h(c.event.body)+'</p><div class="separator"></div><div class="eventtype">RISK CARD</div><h4>'+h(c.risk.name)+'</h4><p>'+h(c.risk.body)+'</p></div>').join(""):'<div class="callout">No cards drawn yet. Draw this turn or let the computer draw when you end it.</div>')+'</div><div class="separator"></div><h3>GAME MASTER DICE</h3><div class="actions" style="margin-top:9px"><button data-action="dice" data-sides="4">ROLL D4</button><button data-action="dice" data-sides="10">ROLL D10</button><button data-action="dice" data-sides="20">ROLL D20</button></div><div class="separator"></div><h3>COMPUTER OPPONENT</h3><p>Difficulty '+h(S.diff.toUpperCase())+' · SIM OPFOR pressure '+S.opfor+'. The computer targets your growing FOS capability and schedules adverse conditions.</p><div class="status">Instructor role: AUTOMATED TRAINING GM (NOT AN OFFICIAL ADJUDICATION)</div>';
+ S.cardChoice??={event:-1,risk:-1};
+ let box='<div class="micro">SIMULATED GAME MASTER / PRACTICE DECK</div><h2>EVENT & RISK DESK</h2><p>Choose an Event and Risk Card, or leave them unselected for random assignment. The D4 rolls select team and FOS. Effects begin on the following turn.</p><h3>EVENT CARD OPTIONS</h3><div class="task-grid" style="margin:8px 0">';
+ EVENTS.forEach((c,i)=>box+='<button class="task '+(S.cardChoice.event===i?"pending":"")+'" data-action="choose-card" data-kind="event" data-index="'+i+'" '+(drew?"disabled":"")+'><strong>🎴 '+h(c.name)+'</strong><small>'+(S.cardChoice.event===i?"SELECTED FOR NEXT DRAW":"SELECT THIS CARD")+'</small></button>');
+ box+='</div><h3>RISK CARD OPTIONS</h3><div class="task-grid" style="margin:8px 0">';
+ RISKS.forEach((c,i)=>box+='<button class="task '+(S.cardChoice.risk===i?"pending":"")+'" data-action="choose-card" data-kind="risk" data-index="'+i+'" '+(drew?"disabled":"")+'><strong>⚠ '+h(c.name)+'</strong><small>'+(S.cardChoice.risk===i?"SELECTED FOR NEXT DRAW":"SELECT THIS CARD")+'</small></button>');
+ box+='</div><button class="primary full" data-action="cards" '+(drew?"disabled":"")+'>🎲 DRAW / REVEAL EVENT + RISK CARDS</button>';
+ box+='<p class="micro">These are representative interactive training cards, NOT transcriptions of the official physical OPS card deck.</p>';
+ box+='<div style="margin-top:10px">'+(S.events.length?S.events.slice(0,3).map(c=>'<div class="eventcard"><div class="eventtype">TURN '+c.turn+' · TEAM '+c.team+' · '+S.sites[c.fos].name+'</div><h3>'+h(c.event.name)+'</h3><p>'+h(c.event.body)+'</p><div class="separator"></div><div class="eventtype">RISK CARD</div><h4>'+h(c.risk.name)+'</h4><p>'+h(c.risk.body)+'</p></div>').join(""):'<div class="callout">No cards drawn yet. Draw this turn or let the computer draw at the end.</div>')+'</div>';
+ box+='<div class="separator"></div><h3>GAME MASTER DICE</h3><div class="actions" style="margin-top:9px"><button data-action="dice" data-sides="4">ROLL D4</button><button data-action="dice" data-sides="10">ROLL D10</button><button data-action="dice" data-sides="20">ROLL D20</button></div><div class="separator"></div><h3>COMPUTER OPPONENT</h3><p>Difficulty '+h(S.diff.toUpperCase())+' · SIM OPFOR pressure '+S.opfor+'. The computer selects developed FOS locations and schedules mission constraints.</p><div class="status">SIMULATED INSTRUCTOR, NOT AN OFFICIAL OPS ADJUDICATION</div>';
+ return box;
 }
 function renderRight(){
  let current=tab;if(!["site","flight","events","support"].includes(current))current="site";
@@ -466,6 +476,7 @@ function action(e){
  else if(a==="fighter-assign")deployFighter();
  else if(a==="fighter-launch")fighterSortie();
  else if(a==="cards")drawCards();
+ else if(a==="choose-card"){S.cardChoice??={event:-1,risk:-1};S.cardChoice[target.dataset.kind]=i;save();render()}
  else if(a==="end-turn")endTurn();
  else if(a==="dice")rollDice(Number(target.dataset.sides));
  else if(a==="support"){
