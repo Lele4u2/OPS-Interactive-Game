@@ -66,7 +66,7 @@ function game(mode,diff){
   ],
   plans:[],events:[],effects:[],log:[],impact:[],strikes:[],targetId:"SIM-A",cardChoice:{event:-1,risk:-1},flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
   ratings:{operations:0,decisions:0,logistics:0},medicalBoards:Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8})),medicalBoard:0,satellites:[{id:"M1",name:"ISR Training Satellite",usedTurn:0},{id:"M2",name:"SATCOM Training Satellite",usedTurn:0},{id:"L1",name:"Space Warning Satellite",usedTurn:0}],selectedSatellite:"M1",support:{space:0,medical:0,requested:{}},sound:false,history:[],
-  command:{auto:mode==="computer",autoTurns:false,pickPlane:"C130-A",pickSite:1,priority:"BUILD",returnHome:true,orders:[],completed:0,alerts:[]},
+  dashboardTab:"overview",coordination:[],coordSerial:0,command:{auto:mode==="computer",autoTurns:false,pickPlane:"C130-A",pickSite:1,priority:"BUILD",returnHome:true,orders:[],completed:0,alerts:[]},
   objective:{"name":"Activate and sustain forward operating sites","target":25}
  };
 }
@@ -85,7 +85,7 @@ function start(mode,diff){
 function ensureCommand(){
  if(!S)return;
  S.command??={auto:S.mode==="computer",autoTurns:false,pickPlane:"C130-A",pickSite:1,priority:"BUILD",returnHome:true,orders:[],completed:0,alerts:[]};
- S.command.orders??=[];S.command.alerts??=[];S.command.pickPlane??="C130-A";S.command.pickSite??=1;S.command.priority??="BUILD";
+ S.coordination??=[];S.coordSerial??=0;S.dashboardTab??="overview";S.command.orders??=[];S.command.alerts??=[];S.command.pickPlane??="C130-A";S.command.pickSite??=1;S.command.priority??="BUILD";
 }
 function startCommandClock(){
  if(commandTimer!==null)clearInterval(commandTimer);
