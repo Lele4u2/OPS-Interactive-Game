@@ -331,6 +331,11 @@ function boardInspector(){
  if(which==="MOB")out+='<div class="board-banner"><strong>LIVE SOURCE BOARD</strong><span>Click an airfield number, RFI box or numbered task. Every action updates this board and the game.</span></div>';
  out+='<div class="original-board-viewport" id="originalBoardScroll"><div class="original-board-stage" style="width:'+(100*S.boardZoom)+'%"><img src="'+encodeURI(item[1])+'" draggable="false" data-action="board-image-tap" alt="Original Operation Pacific Shield '+which+' tabletop board">';
  if(which==="MOB"){
+  const flightSlots=S.fleet.filter(p=>p.status!=="LOST").map((p,i)=>{
+    const pos=boardLocation(p.at),sx=pos.x/10+((i%2)*3-2),sy=pos.y/10+(Math.floor(i/2)*3+3);
+    return '<button class="board-aircraft-token" style="left:'+sx+'%;top:'+sy+'%" data-action="select-plane" data-plane="'+p.id+'" title="'+h(p.name)+' at '+h(String(p.at))+'">✈ '+p.id+' <small>'+h(p.status)+'</small></button>';
+  }).join("");
+  out+='<svg class="board-mission-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"><path id="moving-route" d="" class="board-flight-route"/><g id="moving-plane" opacity="0" transform="translate(-100 -100)" class="board-flight-plane"><circle r="24" fill="#ffc86e"/><text text-anchor="middle" dy="8" font-size="33" fill="#0d2433">✈</text></g></svg><div id="board-flight-status" class="board-flight-status">SELECT AN AIRCRAFT TO FLY A MISSION</div>'+flightSlots;
   const sectors=[
    {x:47.3,y:61.5,rfiX:8.3,rfiY:76.0,num:1},
    {x:52.7,y:61.5,rfiX:63.7,rfiY:76.0,num:2},
@@ -360,6 +365,21 @@ function boardInspector(){
   out+='<button class="board-cards" style="left:50%;top:79%" data-action="board-cards">🎴 CARDS</button>';
  }else{
   out+='<button class="board-other-action" data-action="board-workstation" data-id="'+which+'">OPEN LIVE '+which+' WORKSTATION →</button>';
+  if(which==="CAOC"){
+    S.fleet.forEach((p,i)=>{
+      out+='<button class="board-other-token" style="left:'+(17+i*21)+'%;top:54%" data-action="select-plane" data-plane="'+p.id+'">✈ '+p.id+'<small>'+p.status+'</small></button>';
+    });
+    out+='<button class="board-other-token" style="left:50%;top:82%" data-action="board-cargo">VIEW FLIGHT PLANS / ATO</button>';
+  }else if(which==="SPACE"){
+    out+='<button class="board-other-token" style="left:32%;top:68%" data-action="support" data-id="space">◉ REQUEST SPACE WARNING</button>';
+    out+='<button class="board-other-token" style="left:70%;top:68%" data-action="tab" data-id="support">CHECK CSpOC STATUS</button>';
+  }else if(which==="MEDCOM"){
+    out+='<button class="board-other-token" style="left:30%;top:68%" data-action="support" data-id="medical">✚ REQUEST MEDCOM</button>';
+    out+='<button class="board-other-token" style="left:72%;top:68%" data-action="tab" data-id="support">CHECK MEDICAL STATUS</button>';
+  }else if(which==="LOAD"){
+    const choices=[["C130-A",18],["C17-A",49],["C5-A",79]];
+    for(const [id,x] of choices)out+='<button class="board-other-token" style="left:'+x+'%;top:82%" data-action="select-plane" data-plane="'+id+'">✈ LOAD '+id+'</button>';
+  }
  }
  out+='</div></div>';
  if(which==="MOB")out+='<div class="board-toggle"><button data-action="board-layer" data-id="tasks" class="'+(S.boardLayer==="tasks"?"active":"")+'">TASK MARKERS</button><button data-action="board-layer" data-id="clear" class="'+(S.boardLayer==="clear"?"active":"")+'">CLEAN BOARD</button><button data-action="board-rfi" data-index="'+selected+'">REQUEST RFIs</button><button data-action="board-cargo">AIRCRAFT / CARGO</button></div>';
