@@ -109,3 +109,9 @@
 .board-med-task{padding:0!important;min-width:25px;width:25px;height:25px;border-radius:50%;font-weight:900}
 .board-med-task.complete{background:#1f7256;border-color:#8ef4ae}
 @media(max-width:750px){.board-med-picker{font-size:9px!important;padding:3px!important}.board-med-task{min-width:21px;width:21px;height:21px;font-size:10px!important}}
+
+
+.board-satellite{display:grid;place-items:center;min-width:90px;padding:8px!important;font-size:12px!important;color:#c9e9ff;background:#0b2847f0;border:2px solid #62d6f9;border-radius:50%;box-shadow:0 0 16px #38adff99;animation:satelliteDrift 8s ease-in-out infinite alternate}
+.board-satellite small{font-size:9px!important;white-space:normal;max-width:100px}
+.board-satellite.selected{border-color:#ffce83;box-shadow:0 0 0 4px #f7c36a44,0 0 25px #f7c36a88}
+@keyframes satelliteDrift{from{translate:-6px -8px}to{translate:10px 7px}}
