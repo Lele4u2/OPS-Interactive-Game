@@ -59,4 +59,115 @@ $("tests").textContent=out.join("\n")+"\n\nThese checks test local deterministic
 $("run-tests").onclick=tests;window.opsC2Tests={runAll:tests,test_scoring_persistence_zero_mp:()=>tests()[0],test_atomic_rollback_on_failed_move:()=>tests()[1],test_rfi_duplicate_rejection:()=>tests()[2],test_disconnect_reconnect_sync:()=>tests()[3]};
 try{const saved=JSON.parse(localStorage.getItem(KEY)||"null");if(saved){verifyState(saved);S=saved}}catch(e){$("status").textContent="Prior save invalid; using fresh lab state"}render();
 })();
+</script>
+<section class="panel" style="max-width:1190px;margin:16px auto" id="c2-authority-v2">
+<h2>Authoritative Pipeline V2 — Isolated QA Module</h2>
+<p class="small"><strong>Security boundary:</strong> Browser-only simulation. All GM actions are denied unless an external trusted verifier explicitly approves them. HMAC signing secrets must live on a trusted server, never in this HTML. This module does not implement live multiplayer, real HMAC credentials, or verified official OPS rules.</p>
+<button id="run-v2-tests">Run V2 Security / Replay / MOG Tests</button>
+<pre id="v2-results">Not run yet.</pre>
+</section>
+<script>
+(()=>{
+"use strict";
+const initial=()=>({revision:0,earnedMP:0,totalDP:0,appliedDpDeductions:0,resolvedRfiIds:[],sites:{ALPHA:{ready:false,mogAvailable:0,fuel:4,cargo:3}},tokens:{JET1:{site:null}},events:[],audit:[],processedTxnIds:[]});
+const copy=x=>JSON.parse(JSON.stringify(x));
+const requireThat=(x,m)=>{if(!x)throw Error(m)};
+const canonical=s=>JSON.stringify({revision:s.revision,earnedMP:s.earnedMP,totalDP:s.totalDP,appliedDpDeductions:s.appliedDpDeductions,resolvedRfiIds:s.resolvedRfiIds,sites:s.sites,tokens:s.tokens,processedTxnIds:s.processedTxnIds,events:s.events,audit:s.audit});
+const validId=x=>typeof x==="string"&&x.length>0&&x.length<128;
+class C2TransactionEngine{
+  constructor({verifyGM=()=>false}={}){this.verifyGM=verifyGM;this.state=initial()}
+  submit(txn){
+    const current=this.state;
+    const fail=reason=>{const event={auditId:"security-"+String(current.audit.length+1),requestTxnId:String(txn?.txnId||""),decision:"REJECTED",reason};this.state={...current,audit:[...current.audit,event]};return{success:false,reason}};
+    if(!validId(txn?.txnId))return fail("Invalid transaction ID");
+    if(current.processedTxnIds.includes(txn.txnId))return fail("Duplicate transaction");
+    if(txn.expectedRevision!==current.revision)return fail("Stale revision");
+    if(["GM_OVERRIDE","MOVE_FIGHTER","RESOLVE_RFI"].includes(txn.type)&&!this.verifyGM(txn))return fail("Unauthorized GM: signature/authority not accepted");
+    let next=copy(current),children=[];
+    try{
+      switch(txn.type){
+        case"AWARD_MP":requireThat(Number.isSafeInteger(txn.points)&&txn.points>0&&txn.points<=100,"Invalid MP");next.earnedMP+=txn.points;break;
+        case"ADD_DP":requireThat(Number.isSafeInteger(txn.points)&&txn.points>0&&txn.points<=100,"Invalid DP");next.totalDP+=txn.points;next.appliedDpDeductions=Math.floor(next.totalDP/5);break;
+        case"MOVE_FIGHTER":{
+          const site=next.sites[txn.siteId];
+          requireThat(site,"Unknown FOS");
+          requireThat(site.ready,"FOS incomplete");
+          requireThat(site.mogAvailable>0,"MOG capacity exceeded");
+          requireThat(site.fuel>0,"Fuel unavailable");
+          requireThat(next.tokens.JET1.site!==txn.siteId,"Already at destination");
+          site.mogAvailable--;site.fuel--;next.tokens.JET1.site=txn.siteId;
+          break;
+        }
+        case"RESOLVE_RFI":{
+          requireThat(validId(txn.rfiId),"Invalid RFI ID");
+          requireThat(!next.resolvedRfiIds.includes(txn.rfiId),"Duplicate RFI");
+          requireThat(txn.conditionMet===true,"RFI condition not met (test assertion only)");
+          next.resolvedRfiIds.push(txn.rfiId);
+          if(next.resolvedRfiIds.length%10===0){
+            const childId="reward-"+txn.txnId;
+            requireThat(!next.processedTxnIds.includes(childId),"Child event collision");
+            next.earnedMP+=5;
+            children.push({txnId:childId,parentTxnId:txn.txnId,type:"AWARD_MP",points:5,reason:"10 verified RFIs milestone — illustrative"});
+            next.processedTxnIds.push(childId);
+          }break;
+        }
+        case"GM_OVERRIDE":requireThat(txn.siteId==="ALPHA"&&typeof txn.ready==="boolean","Invalid override");next.sites.ALPHA.ready=txn.ready;break;
+        default:throw Error("Unknown transaction type");
+      }
+      next.processedTxnIds.push(txn.txnId);
+      next.revision++;
+      next.events.push({txnId:txn.txnId,type:txn.type,points:txn.points||null,siteId:txn.siteId||null,rfiId:txn.rfiId||null,ready:txn.ready??null,conditionMet:txn.conditionMet===true,parentTxnId:null},...children);
+      next.audit.push({auditId:"audit-"+String(next.audit.length+1),requestTxnId:txn.txnId,decision:"APPROVED",reason:"Validated and committed"});
+      this.state=next;return{success:true,state:copy(next),children};
+    }catch(e){return fail(e.message)}
+  }
+}
+class C2Reconciler{
+  static reconstruct(snapshot,authoritativeRequests,options={}){
+    const engine=new C2TransactionEngine(options);
+    for(const txn of authoritativeRequests){const response=engine.submit(txn);requireThat(response.success,"Replay failed: "+response.reason)}
+    requireThat(canonical(engine.state)===canonical(snapshot),"Corrupted save: transaction replay and snapshot diverge");
+    return engine.state;
+  }
+}
+const runAll=()=>{
+  const results=[];const run=(name,fn)=>{try{fn();results.push("PASS "+name)}catch(e){results.push("FAIL "+name+": "+e.message)}};
+  const gm={verifyGM:txn=>txn.gmAuthSignature==="TEST-TRUSTED-ONLY"};
+  const next=(e,t)=>({txnId:"txn-"+(e.state.revision+1),expectedRevision:e.state.revision,...t});
+  run("test_unauthorized_gm_rejection",()=>{
+    const e=new C2TransactionEngine();
+    const r=e.submit(next(e,{type:"GM_OVERRIDE",actorRole:"GM",gmAuthSignature:"invalid",siteId:"ALPHA",ready:true}));
+    requireThat(!r.success&&e.state.audit.some(a=>a.decision==="REJECTED"),"Unauthorized GM not logged");
+    requireThat(e.state.sites.ALPHA.ready===false,"Unauthorized mutation");
+  });
+  run("test_parent_linked_rfi_reward",()=>{
+    const e=new C2TransactionEngine(gm),requests=[];
+    for(let i=1;i<=10;i++){const t=next(e,{type:"RESOLVE_RFI",rfiId:"RFI-"+i,conditionMet:true,gmAuthSignature:"TEST-TRUSTED-ONLY"});requests.push(t);requireThat(e.submit(t).success,"RFI failed")}
+    const parent=e.state.events.find(x=>x.rfiId==="RFI-10"),child=e.state.events.find(x=>x.parentTxnId===parent.txnId);
+    requireThat(child?.type==="AWARD_MP"&&child.points===5&&e.state.earnedMP===5,"Missing linked reward");
+    requireThat(C2Reconciler.reconstruct(e.state,requests,gm).earnedMP===5,"Replay mismatch");
+  });
+  run("test_corrupted_save_replay",()=>{
+    const e=new C2TransactionEngine(),t=next(e,{type:"AWARD_MP",points:5});requireThat(e.submit(t).success,"Award failed");
+    const bad=copy(e.state);bad.earnedMP=999;let blocked=false;
+    try{C2Reconciler.reconstruct(bad,[t])}catch(_){blocked=true}
+    requireThat(blocked,"Tampered score accepted");
+  });
+  run("test_atomic_rollback_on_mog_breach",()=>{
+    const e=new C2TransactionEngine(gm);
+    e.state.sites.ALPHA.ready=true;
+    e.state.sites.ALPHA.mogAvailable=0;
+    const before=copy(e.state);
+    const r=e.submit(next(e,{type:"MOVE_FIGHTER",siteId:"ALPHA",gmAuthSignature:"TEST-TRUSTED-ONLY"}));
+    requireThat(!r.success&&r.reason.includes("MOG"),"MOG limit not enforced");
+    requireThat(e.state.sites.ALPHA.fuel===before.sites.ALPHA.fuel&&e.state.sites.ALPHA.cargo===before.sites.ALPHA.cargo&&e.state.tokens.JET1.site===null,"State mutated");
+    requireThat(e.state.audit.at(-1).decision==="REJECTED","Missing rejection log");
+  });
+  const output=results.join("\n")+"\n\nLimitations: simulated trusted verifier (NOT real HMAC); no server, no real reconnect, no verified official rules. Replay requires the complete trusted request stream and same rules version.";
+  document.getElementById("v2-results").textContent=output;
+  return results;
+};
+document.getElementById("run-v2-tests").addEventListener("click",runAll);
+window.opsC2V2Tests={runAll,test_unauthorized_gm_rejection:()=>runAll()[0],test_parent_linked_rfi_reward:()=>runAll()[1],test_corrupted_save_replay:()=>runAll()[2],test_atomic_rollback_on_mog_breach:()=>runAll()[3]};
+})();
 </script></body></html>
