@@ -365,7 +365,24 @@ function boardHelp(which){
  if(p.type==="task"){
   const i=p.i,pre=taskPrereq(i),missing=pre.filter(n=>!f.tasks.includes(n));
   let explain="This is one of 16 FOS capability tasks. The computer checks known prerequisites and personnel, then progresses the task as turns pass.";
-  const notes={0:"Bed Down and Sanitation: complete Task 2 (Power) first.",1:"Power enables the basic operating site and is required before Bed Down and Sanitation.",4:"Ramp Security must be complete before Mobility Support (Task 10).",7:"Camouflage and Base Hardening requires 10 personnel over 2 turns, or 11–20 personnel for 1 turn.",9:"Mobility Support requires Task 5 (Ramp Security).",10:"Integrated Combat Turns is one of the Operate capabilities required before fighter sorties."};
+  const notes={
+   0:"Bed Down and Sanitation: build living and sanitation infrastructure. Power (Task 2) must be complete first. The guide specifies 5–10 people: 4 turns; 11–20: 2 turns; 21 or more: 1 turn.",
+   1:"Power: establish electrical support for the FOS. This task unlocks Bed Down and Sanitation (Task 1).",
+   2:"Command and Control: establish the FOS ability to coordinate personnel, communications, and operations. Check the equipment and personnel icons printed on this task square.",
+   3:"Contracts: establish contracting capability before assigning any tasks that the host nation may perform. Only one eligible task can be contracted per turn under the guide.",
+   4:"Ramp Security: protect the aircraft parking and handling area. Completing this task is required before Mobility Support (Task 10).",
+   5:"Perimeter Security: establish defensive security around the forward site. Check the security resources illustrated in this square.",
+   6:"Missile Defense: build protection against a missile threat. The original task square displays the defensive resource requirements and combat modifier.",
+   7:"Camouflage and Base Hardening: build concealment and hardening against attack. The source guide specifies 10 personnel over 2 turns, or 11–20 over 1 turn.",
+   8:"Airfield Operations: establish the ability to control and operate the airfield. This is an Operate task required before fighter operations from the FOS.",
+   9:"Mobility Support: enable the site to receive, unload and support airlift. Task 5 (Ramp Security) must be finished first.",
+   10:"Integrated Combat Turns: create an FOS capability for fighter turn operations. All Establish and Operate tasks must be complete before fighter sorties.",
+   11:"Specialized Fueling Operations: provide the fueling capability for combat aircraft. This is part of the fighter launch readiness gate.",
+   12:"Host Nation Relationships: coordinate with the host nation. The guide says an appropriately resourced Ops/Intel team and vehicle can generate Resource Points; the full RP exchange is not yet simulated.",
+   13:"Health and Welfare: support the personnel at the FOS. The guide assesses demoralization when this task is not complete.",
+   14:"Base Recovery: prepare to repair airfield facilities after successful attacks. The guide uses this task in airfield recovery rules.",
+   15:"Logistics Support: sustain the deployed airfield through continued supply and support. Check printed personnel, commodity and prerequisite symbols."
+  };
   if(notes[i])explain=notes[i];
   let status=f.tasks.includes(i)?"COMPLETE":f.pending.some(t=>t.i===i)?"IN PROGRESS":missing.length?"REQUIRES TASK "+missing.map(x=>x+1).join(", "):f.people<5?"NEED 5+ PERSONNEL":"READY FOR TASKING";
   return brief+'<div class="micro">BOARD TASK '+(i+1)+' · '+R.categories[Math.floor(i/4)]+' · '+status+'</div><h3>'+h(R.tasks[i])+'</h3><p>'+explain+'</p><div class="board-instructions">TO PLAY: Request the task on this board. If prerequisites and staffing are present, the simulated instructor schedules its completion. Exact unverified costs are not assumed to be official.</div><div class="actions"><button class="primary" data-action="board-start-task" data-index="'+i+'" '+(f.tasks.includes(i)||f.pending.some(t=>t.i===i)?"disabled":"")+'>▶ START TASK '+(i+1)+'</button><button data-action="board-cargo">SEND PERSONNEL</button><button data-action="rules">TASK GUIDE</button></div>';
