@@ -36,7 +36,8 @@ const RISKS=[
  {name:"ACCESS VERIFIED",body:"No further restriction from this risk card.",type:"clear"}
 ];
 const RFI_NAMES=R.RFIs || ["Fire rescue","Mobility","Ramp","ATC","Equipment","Beddown","Fuel","Security","Host nation","Medical"];
-let S=null,modal="launch",tab="map",selected=0,activePlane="C130-A",cargo={},toastTimer=null,moving=false,view="map";
+let S=null,modal="launch",tab="map",selected=0,activePlane="C130-A",cargo={},toastTimer=null,moving=false,view="map",audioCtx=null;
+function beep(type){if(!S||!S.sound)return;try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;audioCtx=audioCtx||new A();const o=audioCtx.createOscillator(),v=audioCtx.createGain();o.type=type==="warn"?"triangle":"sine";o.frequency.setValueAtTime(type==="warn"?270:type==="fly"?420:700,audioCtx.currentTime);if(type==="fly")o.frequency.exponentialRampToValueAtTime(110,audioCtx.currentTime+.32);v.gain.setValueAtTime(.045,audioCtx.currentTime);v.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.35);o.connect(v);v.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.38)}catch(e){}}
 const root=$("app");
 const h=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const rnd=n=>{const a=new Uint32Array(1),lim=4294967296-(4294967296%n);do{crypto.getRandomValues(a)}while(a[0]>=lim);return a[0]%n+1};
@@ -145,7 +146,7 @@ function createPlan(){
  p.status="PLANNED";p.load={...cargo};
  S.plans.push({id:"ATO-"+String(S.plans.length+1).padStart(3,"0"),aircraft:p.id,site:s.id,load:{...cargo},status:"APPROVED",turn:S.turn,simulated:true});
  S.flags.loaded=true;S.training+=3;
- log("SIM CAOC validated practice ATO for "+p.name+" to "+s.name+". Load "+cargoWeight(cargo)+"/"+capacity(p)+" slots. "+(p.type==="C5"?"C-5 landing risk pending.":""),"SIM CAOC");
+ log("SIM CAOC validated practice ATO for "+p.name+" to "+s.name+". Load "+cargoWeight(cargo)+"/"+capacity(p)+" slots. "+(p.type==="C5"?"C-5 landing risk pending.":""),"SIM CAOC");beep("good");
  save();render();
 }
 function resolveC5(p,s){
@@ -172,7 +173,7 @@ function dispatch(){
  if(!pl)return notify("First create a mission plan and load the aircraft.");
  const s=S.sites.find(x=>x.id===pl.site);
  if(s.blockedUntil>S.turn||!s.access)return notify("Site access restricted. Wait for the next turn.");
- p.status="FLYING";pl.status="ENROUTE";S.flags.dispatched=true;log(p.name+" airborne from MOB to "+s.name+".","SIM CAOC");
+ p.status="FLYING";pl.status="ENROUTE";S.flags.dispatched=true;beep("fly");log(p.name+" airborne from MOB to "+s.name+".","SIM CAOC");
  animate("MOB",s.id,()=>{
   p.at=s.id;p.landed=S.turn;
   const landed=p.type==="C5"?resolveC5(p,s):(p.status="AT FOS",true);
@@ -199,7 +200,7 @@ function returnFlight(){
  if(p.status==="DAMAGED"){if(S.turn<p.until)return notify(p.name+" damaged until Turn "+p.until);p.status="AT FOS"}
  if(p.status!=="AT FOS")return notify("Aircraft cannot return in its current status.");
  if(S.turn<=p.landed)return notify("Per the OPS guide, depart on a subsequent turn. Click END TURN first.");
- const from=p.at;p.status="RETURNING";log(p.name+" departed FOS "+from+" for MOB.","SIM CAOC");
+ const from=p.at;p.status="RETURNING";beep("fly");log(p.name+" departed FOS "+from+" for MOB.","SIM CAOC");
  animate(from,"MOB",()=>{p.status="READY";p.at="MOB";p.landed=0;S.flags.returned=true;S.training+=7;log(p.name+" returned to MOB and is available for reassignment.","SIM CAOC")});
 }
 function deployFighter(){
@@ -223,7 +224,7 @@ function drawCards(){
  const team=rnd(4),index=rnd(4),event=EVENTS[rnd(EVENTS.length)-1],risk=RISKS[rnd(RISKS.length)-1];
  const draw={turn:S.turn,team,fos:index,event,risk};S.events.unshift(draw);
  S.effects.push({due:S.turn+1,site:index,kind:"event",item:event},{due:S.turn+1,site:index,kind:"risk",item:risk});
- S.flags.card=true;S.ratings.decisions+=2;
+ S.flags.card=true;S.ratings.decisions+=2;beep("warn");
  log("SIM GM drew Event: "+event.name+" and Risk: "+risk.name+" — Team "+team+" / "+S.sites[index].name+". Apply following turn.","SIM GM");
  modal="cards";save();render();
 }
@@ -279,7 +280,7 @@ function sound(){S.sound=!S.sound;save();render();notify(S.sound?"Sound enabled"
 function shortSite(s){return s.tasks.length+"/16 tasks · "+s.rfis.length+"/10 RFIs"}
 function smallStatus(p){return p.status==="READY"?"READY @ MOB":p.status+" @ "+(p.at==="MOB"?"MOB":"FOS "+p.at)}
 function renderHeader(){
- return '<div class="topbar"><a href="index.html" class="brand" title="Mission lobby">OPS <b>/// PACIFIC SHIELD</b></a><div class="topmiddle"><div class="hudstat"><span class="micro">TURN</span><strong>'+S.turn+' / 12</strong></div><div class="hudstat"><span class="micro">MISSION POINTS</span><strong class="gold">'+S.mp+'</strong></div><div class="hudstat"><span class="micro">MODE</span><strong>'+h(S.mode).toUpperCase()+'</strong></div></div><div class="righttop"><button class="smallbtn" data-action="save">SAVE</button><button class="smallbtn" data-action="rules">RULES</button><button class="smallbtn" data-action="menu">MENU</button></div></div>';
+ return '<div class="topbar"><a href="index.html" class="brand" title="Mission lobby">OPS <b>/// PACIFIC SHIELD</b></a><div class="topmiddle"><div class="hudstat"><span class="micro">TURN</span><strong>'+S.turn+' / 12</strong></div><div class="hudstat"><span class="micro">MISSION POINTS</span><strong class="gold">'+S.mp+'</strong></div><div class="hudstat"><span class="micro">MODE</span><strong>'+h(S.mode).toUpperCase()+'</strong></div></div><div class="righttop"><button class="smallbtn" data-action="sound">'+(S.sound?"🔊 SOUND":"🔇 SOUND")+'</button><button class="smallbtn" data-action="save">SAVE</button><button class="smallbtn" data-action="rules">RULES</button><button class="smallbtn" data-action="menu">MENU</button></div></div>';
 }
 function renderMap(){
  let grid="",land="";
@@ -406,7 +407,7 @@ function modalHTML(){
  }else if(modal==="dice"){
   const r=S.roll;inner='<div class="micro">'+h(r.kind)+'</div><h2>GAME MASTER D'+r.sides+'</h2><div class="dice-stage"><div class="die rolling" id="rolling-die">?</div></div><h3 class="gold" id="dice-end" style="text-align:center;display:none">'+r.number+' · '+h(r.title)+'</h3><p style="text-align:center">'+h(r.body||"")+'</p><footer><button class="primary" data-action="close">CONTINUE</button></footer>';
  }else if(modal==="menu"){
-  inner='<div class="micro">MISSION OPTIONS</div><h2>CAMPAIGN CONTROL</h2><p>Continue your current operation, save it, start another mode, or review the complete rules.</p><div class="stack"><button data-action="save">SAVE MISSION</button><button data-action="rules">RULES REFERENCE</button><button data-action="aar">AFTER-ACTION REVIEW</button><button data-action="new-game">START NEW GAME</button></div><footer><button class="primary" data-action="close">RESUME OPERATION</button></footer>';
+  inner='<div class="micro">MISSION OPTIONS</div><h2>CAMPAIGN CONTROL</h2><p>Continue your current operation, save it, start another mode, or review the complete rules.</p><div class="stack"><button data-action="save">SAVE MISSION</button><button data-action="rules">RULES REFERENCE</button><button data-action="aar">AFTER-ACTION REVIEW</button><div class="micro">COMPUTER OPPOSITION DIFFICULTY</div><div class="actions"><button data-action="difficulty" data-id="cadet">CADET</button><button data-action="difficulty" data-id="standard">STANDARD</button><button data-action="difficulty" data-id="veteran">VETERAN</button></div><button data-action="new-game">START NEW GAME</button></div><footer><button class="primary" data-action="close">RESUME OPERATION</button></footer>';
  }
  return '<div class="modalwrap" id="modalwrap"><div class="modal '+(modal==="aar"?"wide":"")+'">'+(modal!=="launch"?'<button class="close flat" data-action="close">✕</button>':"")+inner+'</div></div>';
 }
@@ -446,6 +447,8 @@ function action(e){
  else if(a==="menu"){modal="menu";render()}
  else if(a==="new-game")resetGame();
  else if(a==="save")save(true);
+ else if(a==="sound"){sound()}
+ else if(a==="difficulty"){S.diff=id;log("Computer challenge difficulty changed to "+id,"OPS");save();render();notify("Opponent difficulty: "+id)}
  else if(a==="guide"){const t=tutorial();if(t){view="map";tab=t.step[3];if(t.index>=8)tab=t.step[3];render();const btn=document.querySelector('[data-action="'+({map:"select-site",site:"initial-rfi",flight:"plan",events:"cards"}[tab]||"select-site")+'"]');btn?.classList.add("flash");btn?.scrollIntoView({block:"center",behavior:"smooth"})}else{tab=site().people<5?"flight":"site";view="map";render()}}
  else if(a==="help"){modal="rules";render()}
 }
