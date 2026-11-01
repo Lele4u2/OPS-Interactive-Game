@@ -36,7 +36,7 @@ const RISKS=[
  {name:"ACCESS VERIFIED",body:"No further restriction from this risk card.",type:"clear"}
 ];
 const RFI_NAMES=R.RFIs || ["Fire rescue","Mobility","Ramp","ATC","Equipment","Beddown","Fuel","Security","Host nation","Medical"];
-let S=null,modal="launch",tab="map",selected=0,activePlane="C130-A",cargo={},toastTimer=null,moving=false,view="map",audioCtx=null;
+let S=null,modal="launch",tab="map",selected=0,activePlane="C130-A",cargo={},toastTimer=null,moving=false,view="board",audioCtx=null;
 function beep(type){if(!S||!S.sound)return;try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;audioCtx=audioCtx||new A();const o=audioCtx.createOscillator(),v=audioCtx.createGain();o.type=type==="warn"?"triangle":"sine";o.frequency.setValueAtTime(type==="warn"?270:type==="fly"?420:700,audioCtx.currentTime);if(type==="fly")o.frequency.exponentialRampToValueAtTime(110,audioCtx.currentTime+.32);v.gain.setValueAtTime(.045,audioCtx.currentTime);v.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.35);o.connect(v);v.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.38)}catch(e){}}
 const root=$("app");
 const h=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -64,7 +64,7 @@ function notify(msg){const old=$("toastpop");if(old)old.remove();const d=documen
 function save(show=false){if(!S)return;try{localStorage.setItem(KEY,JSON.stringify(S));if(show)notify("Mission saved on this device.")}catch(e){notify("Browser save unavailable.")}}
 function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
 function start(mode,diff){
- S=game(mode,diff);modal="";selected=0;activePlane="C130-A";tab="map";view="map";cargo={people:1,forklift:1};
+ S=game(mode,diff);modal="";selected=0;activePlane="C130-A";tab="site";view="board";cargo={people:1,forklift:1};
  log("Mission initialized: "+mode.toUpperCase()+" / "+diff.toUpperCase()+".","SIM GM");
  log("The simulated GM handles computer adjudication. Training load capacities and scenario cards are not official OPS data.","SIM GM");
  save();render();
@@ -76,9 +76,9 @@ function tutorial(){
  if(S.mode!=="tutorial")return null;
  const f=S.flags;
  const steps=[
- ["Choose a FOS","Select any gold or cyan FOS marker on the live map to start a forward site.",f.selected,"map"],
- ["Request initial RFI","Open SITE OPERATIONS and request your first airfield assessment. The simulated instructor answers.",f.rfi,"site"],
- ["Choose an aircraft","Select the C-130 in the aircraft roster. You can change the load and destination.",S.pilotActions>0,"flight"],
+ ["Choose a FOS","Select Airfield 1, 2, 3, or 4 on your original OPS MOB board. The selected airfield lights up.",f.selected,"map"],
+ ["Request initial RFI","Click an RFI area on the original board and request the initial airfield information. The simulated instructor replies.",f.rfi,"site"],
+ ["Choose an aircraft","Select a C-130 aircraft token on the board or in the roster. Choose a load and destination.",S.pilotActions>0,"flight"],
  ["Build the load","In AIRLIFT PLANNER add an MRA team and forklift, then submit the plan.",f.loaded,"flight"],
  ["Launch your aircraft","Click FLY MISSION. The aircraft will leave MOB and travel to your chosen FOS.",f.dispatched,"flight"],
  ["Watch arrival","Let the aircraft land and unload its counters. The FOS resource tally will change.",f.arrived,"map"],
@@ -349,7 +349,7 @@ function renderCoach(){
  return '<div class="panel guide"><div class="micro">MISSION COMMANDER COACH</div><h3>'+(S.mode==="computer"?"PLAY THE COMPUTER":"FREE-PLAY COACH")+'</h3><p>'+msg+'</p><div class="actions"><button data-action="guide">NEXT BEST ACTION</button><button data-action="help">RULES COACH</button></div></div>';
 }
 function renderCenter(){
- return '<main class="column center">'+renderCoach()+'<div class="panel"><div class="panel-head"><div><div class="micro">COMMON OPERATIONAL PICTURE</div><h2>THEATER OPERATIONS</h2></div><span class="chip '+(moving?"bad":"ok")+'">'+(moving?"AIRCRAFT IN FLIGHT":"TACTICAL OVERVIEW")+'</span></div><div class="tabs" style="margin-bottom:10px"><button data-action="view" data-id="map" class="'+(view==="map"?"active":"")+'">LIVE MAP</button><button data-action="view" data-id="board" class="'+(view==="board"?"active":"")+'">ORIGINAL BOARDS</button><button data-action="view" data-id="timeline" class="'+(view==="timeline"?"active":"")+'">MISSION TRACK</button></div>'+(view==="map"?renderMap():view==="board"?boardInspector():renderTimeline())+'</div><div class="panel"><div class="panel-head"><div><div class="micro">SITE DEVELOPMENT</div><h3>FOUR FORWARD OPERATING SITES</h3></div></div><div class="site-actions">'+S.sites.map((s,i)=>'<button class="'+(selected===i?"primary":"")+'" data-action="select-site" data-index="'+i+'">'+s.name+' / '+s.country+'<br><span style="font-size:10px;font-weight:500">'+shortSite(s)+'</span></button>').join("")+'</div></div><div class="panel"><div class="panel-head"><div><div class="micro">LIVE OPERATIONS NET</div><h3>COMMAND LOG</h3></div><button class="flat" data-action="aar">VIEW AAR ↗</button></div><div class="log">'+S.log.slice(0,16).map(x=>'<div class="log-entry"><b>T'+x.turn+' / '+h(x.who)+'</b> · '+h(x.msg)+'</div>').join("")+'</div></div></main>';
+ return '<main class="column center">'+renderCoach()+'<div class="panel"><div class="panel-head"><div><div class="micro">ORIGINAL BOARD / LIVE GAME</div><h2>THE ORIGINAL OPS BOARD — PLAYABLE</h2></div><span class="chip '+(moving?"bad":"ok")+'">'+(moving?"AIRCRAFT IN FLIGHT":"TACTICAL OVERVIEW")+'</span></div><div class="tabs" style="margin-bottom:10px"><button data-action="view" data-id="map" class="'+(view==="map"?"active":"")+'">MISSION MAP</button><button data-action="view" data-id="board" class="'+(view==="board"?"active":"")+'">PLAY ORIGINAL BOARD</button><button data-action="view" data-id="timeline" class="'+(view==="timeline"?"active":"")+'">MISSION TRACK</button></div>'+(view==="map"?renderMap():view==="board"?boardInspector():renderTimeline())+'</div><div class="panel"><div class="panel-head"><div><div class="micro">SITE DEVELOPMENT</div><h3>FOUR FORWARD OPERATING SITES</h3></div></div><div class="site-actions">'+S.sites.map((s,i)=>'<button class="'+(selected===i?"primary":"")+'" data-action="select-site" data-index="'+i+'">'+s.name+' / '+s.country+'<br><span style="font-size:10px;font-weight:500">'+shortSite(s)+'</span></button>').join("")+'</div></div><div class="panel"><div class="panel-head"><div><div class="micro">LIVE OPERATIONS NET</div><h3>COMMAND LOG</h3></div><button class="flat" data-action="aar">VIEW AAR ↗</button></div><div class="log">'+S.log.slice(0,16).map(x=>'<div class="log-entry"><b>T'+x.turn+' / '+h(x.who)+'</b> · '+h(x.msg)+'</div>').join("")+'</div></div></main>';
 }
 function renderTimeline(){
  return '<div class="stack">'+S.plans.slice().reverse().map(p=>'<div class="missioncard"><div class="micro">'+h(p.id)+' · T'+p.turn+'</div><strong>'+h(p.aircraft)+' → FOS '+p.site+'</strong><p>MISSION STATUS: '+p.status+' · '+cargoWeight(p.load)+' loaded counters</p></div>').join("")+'<div class="callout">Aircraft must return after a subsequent turn. Missions are saved between visits.</div></div>';
@@ -495,7 +495,7 @@ function action(e){
  else if(a==="save")save(true);
  else if(a==="sound"){sound()}
  else if(a==="difficulty"){S.diff=id;log("Computer challenge difficulty changed to "+id,"OPS");save();render();notify("Opponent difficulty: "+id)}
- else if(a==="guide"){const t=tutorial();if(t){view="map";tab=t.step[3];if(t.index>=8)tab=t.step[3];render();const btn=document.querySelector('[data-action="'+({map:"select-site",site:"initial-rfi",flight:"plan",events:"cards"}[tab]||"select-site")+'"]');btn?.classList.add("flash");btn?.scrollIntoView({block:"center",behavior:"smooth"})}else{tab=site().people<5?"flight":"site";view="map";render()}}
+ else if(a==="guide"){const t=tutorial();if(t){view="board";S.inspect="MOB";tab=t.step[3];if(t.index>=8)tab=t.step[3];render();const btn=document.querySelector('[data-action="'+({map:"select-site",site:"initial-rfi",flight:"plan",events:"cards"}[tab]||"select-site")+'"]');btn?.classList.add("flash");btn?.scrollIntoView({block:"center",behavior:"smooth"})}else{tab=site().people<5?"flight":"site";view="board";render()}}
  else if(a==="help"){modal="rules";render()}
 }
 root.addEventListener("click",action);
