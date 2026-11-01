@@ -9,6 +9,9 @@ const POS=[
  {id:25,name:"FOS 25",country:"Thailand",x:200,y:285}
 ];
 const HOME={x:92,y:186};
+const BOARD_BASE={x:500,y:485};
+const BOARD_SITES=[{x:260,y:790},{x:770,y:790},{x:770,y:215},{x:260,y:215}];
+function boardLocation(ref){if(ref==="MOB")return BOARD_BASE;const j=POS.findIndex(p=>p.id===ref);return BOARD_SITES[Math.max(0,j)];}
 const CARGO=[
  {id:"people",name:"5-person MRA team",icon:"👥"},
  {id:"forklift",name:"Forklift equipment",icon:"🚜"},
@@ -47,14 +50,14 @@ function game(mode,diff){
  return{
   version:4,mode,diff,turn:1,phase:"PLANNING",mp:0,dp:0,training:0,opfor:0,finished:false,
   stock:{...DEFAULT},site:0,selectedPlane:"C130-A",pilotActions:0,
-  sites:POS.map(p=>({...p,rfis:[],tasks:[],pending:[],people:0,forklift:0,fuel:0,food:0,ammo:0,missile:0,blockedUntil:0,access:true,fighters:0,fighterReady:0,firstArrival:0,assessmentAwarded:false,damage:0})),
+  sites:POS.map(p=>({...p,rfis:[],tasks:[],pending:[],people:0,forklift:0,fuel:0,food:0,ammo:0,missile:0,blockedUntil:0,access:true,fighters:0,fighterReady:0,firstArrival:0,assessmentAwarded:false,damage:0,shortageDays:0})),
   fleet:[
    {id:"C130-A",type:"C130",name:"C-130 Hercules",at:"MOB",status:"READY",load:{},landed:0,until:0},
    {id:"C130-B",type:"C130",name:"C-130 Hercules",at:"MOB",status:"READY",load:{},landed:0,until:0},
    {id:"C17-A",type:"C17",name:"C-17 Globemaster",at:"MOB",status:"READY",load:{},landed:0,until:0},
    {id:"C5-A",type:"C5",name:"C-5 Galaxy",at:"MOB",status:"READY",load:{},landed:0,until:0}
   ],
-  plans:[],events:[],effects:[],log:[],cardChoice:{event:-1,risk:-1},flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
+  plans:[],events:[],effects:[],log:[],impact:[],strikes:[],cardChoice:{event:-1,risk:-1},flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
   ratings:{operations:0,decisions:0,logistics:0},support:{space:0,medical:0,requested:{}},sound:false,history:[],
   objective:{"name":"Activate and sustain forward operating sites","target":25}
  };
@@ -62,7 +65,7 @@ function game(mode,diff){
 function log(msg,who="OPS"){if(!S)return;S.log.unshift({turn:S.turn,who,msg,time:new Date().toLocaleTimeString()});S.log=S.log.slice(0,120)}
 function notify(msg){const old=$("toastpop");if(old)old.remove();const d=document.createElement("div");d.id="toastpop";d.className="toast";d.textContent=msg;document.body.appendChild(d);clearTimeout(toastTimer);toastTimer=setTimeout(()=>d.remove(),3800)}
 function save(show=false){if(!S)return;try{localStorage.setItem(KEY,JSON.stringify(S));if(show)notify("Mission saved on this device.")}catch(e){notify("Browser save unavailable.")}}
-function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
+function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];S.sites.forEach(x=>x.shortageDays??=0);selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
 function start(mode,diff){
  S=game(mode,diff);modal="";selected=0;activePlane="C130-A";tab="site";view="board";cargo={people:1,forklift:1};
  log("Mission initialized: "+mode.toUpperCase()+" / "+diff.toUpperCase()+".","SIM GM");
@@ -158,9 +161,12 @@ function resolveC5(p,s){
  return true;
 }
 function animate(from,to,done,label){
- if(moving)return;moving=true;const d1=point(from),d2=point(to);
+ if(moving)return;moving=true;
+ const onPhysical=view==="board"&&(!S.inspect||S.inspect==="MOB");
+ const d1=onPhysical?boardLocation(from):point(from),d2=onPhysical?boardLocation(to):point(to);
  S.flightFX={from,to,label};render();
  const marker=$("moving-plane");const path=$("moving-route");const btn=$("flight-live-label");
+ const flightBanner=$("board-flight-status");if(flightBanner){flightBanner.textContent="✈ "+label;flightBanner.classList.add("active")}
  if(btn)btn.textContent=label;
  if(path)path.setAttribute("d","M"+d1.x+" "+d1.y+" Q"+((d1.x+d2.x)/2)+" "+(Math.min(d1.y,d2.y)-95)+" "+d2.x+" "+d2.y);
  const begin=performance.now();
@@ -179,6 +185,7 @@ function dispatch(){
   const landed=p.type==="C5"?resolveC5(p,s):(p.status="AT FOS",true);
   if(landed){
     if(s.firstArrival===0)s.firstArrival=S.turn;
+    S.impact.unshift({turn:S.turn,level:"success",text:p.name+" delivered personnel/equipment to "+s.name+". You may now begin eligible FOS tasks."});
     for(const [k,n] of Object.entries(p.load)){
       if(k==="people")s.people+=n*5;
       else if(k==="forklift")s.forklift+=n;
@@ -189,7 +196,7 @@ function dispatch(){
     }
     pl.status="DELIVERED";S.flags.arrived=true;S.training+=12;S.ratings.logistics+=5;
     log(p.name+" landed and downloaded cargo at "+s.name+". "+s.people+" people now on site.","SIM GM");
-  }else{pl.status="LOST"}
+  }else{pl.status="LOST";S.impact.unshift({turn:S.turn,level:"warning",text:"C-5 lost at "+s.name+". Mission cargo was lost. Review the D20 landing-risk rule and authorized route restrictions."});}
   p.load={};
  });
 }
@@ -201,7 +208,7 @@ function returnFlight(){
  if(p.status!=="AT FOS")return notify("Aircraft cannot return in its current status.");
  if(S.turn<=p.landed)return notify("Per the OPS guide, depart on a subsequent turn. Click END TURN first.");
  const from=p.at;p.status="RETURNING";beep("fly");log(p.name+" departed FOS "+from+" for MOB.","SIM CAOC");
- animate(from,"MOB",()=>{p.status="READY";p.at="MOB";p.landed=0;S.flags.returned=true;S.training+=7;log(p.name+" returned to MOB and is available for reassignment.","SIM CAOC")});
+ animate(from,"MOB",()=>{p.status="READY";p.at="MOB";p.landed=0;S.flags.returned=true;S.training+=7;log(p.name+" returned to MOB and is available for reassignment.","SIM CAOC");S.impact.unshift({turn:S.turn,level:"success",text:p.name+" is back at MOB and ready for another delivery."})});
 }
 function deployFighter(){
  const s=site();
@@ -250,10 +257,10 @@ function endTurn(){
   const ready=s.pending.filter(p=>p.due<=S.turn);s.pending=s.pending.filter(p=>p.due>S.turn);
   ready.forEach(t=>{if(!s.tasks.includes(t.i)){s.tasks.push(t.i);S.training+=5;log("SIM GM validated Task "+(t.i+1)+" "+R.tasks[t.i]+" at "+s.name+".","SIM GM")}});
   if(s.people>0){
-    if(s.food>0)s.food--;
-    else{S.dp+=10;log(s.name+" lacks food/water: +10 DP this first simplified scarcity assessment.","SIM GM")}
-    if(!s.tasks.includes(13))S.dp+=5;
-    if(s.firstArrival&&S.turn-s.firstArrival>=4&&!s.tasks.includes(0))S.dp+=5;
+    if(s.food>0){s.food--;s.shortageDays=0;}
+    else{s.shortageDays=(s.shortageDays||0)+1;const penalty=s.shortageDays===1?10:30;S.dp+=penalty;const consequence=s.name+" lacks food/water (Day "+s.shortageDays+"): +"+penalty+" DP. Deliver food to avoid further readiness loss.";S.impact.unshift({turn:S.turn,level:"warning",text:consequence});log(consequence,"SIM GM")}
+    if(!s.tasks.includes(13)){S.dp+=5;S.impact.unshift({turn:S.turn,level:"warning",text:s.name+" has no Health and Welfare: +5 practice DP. Assign Task 14 to reduce personnel impacts."})}
+    if(s.firstArrival&&S.turn-s.firstArrival>=4&&!s.tasks.includes(0)){S.dp+=5;S.impact.unshift({turn:S.turn,level:"warning",text:s.name+" still lacks Bed Down and Sanitation after four turns: +5 practice DP."})}
   }
  }
  S.fleet.forEach(p=>{if(p.status==="DAMAGED"&&p.until<=S.turn){p.status="AT FOS";log(p.name+" repaired; ready for departure from FOS.","SIM GM")}});
@@ -282,6 +289,9 @@ function endTurn(){
  if(S.dp>=5){const deduct=Math.floor(S.dp/5);const already=Math.floor((S.appliedDP||0)/5);const delta=deduct-already;if(delta>0){S.mp-=delta;log("Demoralization adjustment: -"+delta+" MP (1 per 5 accumulated DP).","SCORE")}S.appliedDP=S.dp}
  S.stock.food+=0;S.phase="PLANNING";
  if(S.turn>12){S.finished=true;modal="aar"}
+ if(S.sites.every(x=>x.people===0)&&S.turn>=3)S.impact.unshift({turn:S.turn,level:"warning",text:"No forward operating site is staffed. Deploy a team to start FOS tasks; otherwise the mission cannot develop."});
+ if(S.plans.some(x=>x.status==="APPROVED"))S.impact.unshift({turn:S.turn,level:"warning",text:"An approved airlift chalk is still waiting on the ramp. Select the aircraft and click FLY MISSION."});
+ S.impact=S.impact.slice(0,32);
  log("Turn "+S.turn+" planning opened.","OPS");
  save();render();
 }
@@ -295,7 +305,7 @@ function rollDice(sides){
 }
 function sound(){S.sound=!S.sound;save();render();notify(S.sound?"Sound enabled":"Sound muted")}
 function shortSite(s){return s.tasks.length+"/16 tasks · "+s.rfis.length+"/10 RFIs"}
-function smallStatus(p){return p.status==="READY"?"READY @ MOB":p.status+" @ "+(p.at==="MOB"?"MOB":"FOS "+p.at)}
+function smallStatus(p){return p.status==="READY"?"READY @ MOB":p.status+" @ "+(p.at==="MOB"?"MOB":p.at==="LOST"?"LOST":"FOS "+p.at)}
 function renderHeader(){
  return '<div class="topbar"><a href="index.html" class="brand" title="Mission lobby">OPS <b>/// PACIFIC SHIELD</b></a><div class="topmiddle"><div class="hudstat"><span class="micro">TURN</span><strong>'+S.turn+' / 12</strong></div><div class="hudstat"><span class="micro">MISSION POINTS</span><strong class="gold">'+S.mp+'</strong></div><div class="hudstat"><span class="micro">MODE</span><strong>'+h(S.mode).toUpperCase()+'</strong></div></div><div class="righttop"><button class="smallbtn" data-action="sound">'+(S.sound?"🔊 SOUND":"🔇 SOUND")+'</button><button class="smallbtn" data-action="save">SAVE</button><button class="smallbtn" data-action="rules">RULES</button><button class="smallbtn" data-action="menu">MENU</button></div></div>';
 }
