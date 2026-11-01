@@ -1,6 +1,6 @@
 "use strict";
 (function(){
-const st={peers:new Map(),host:false,guest:false,connected:false,room:"",role:""};
+const st={peers:new Map(),host:false,guest:false,connected:false,room:"",role:"",lastInviteLink:""};
 const $=id=>document.getElementById(id);
 const rand=()=>{const a=new Uint32Array(4);crypto.getRandomValues(a);return Array.from(a).map(x=>x.toString(16)).join("")};
 const enc=x=>btoa(unescape(encodeURIComponent(JSON.stringify(x))));
@@ -31,11 +31,12 @@ function attach(ch,role){
 function open(){
  if($("ops-peer-overlay"))return;
  const el=document.createElement("div");el.id="ops-peer-overlay";el.className="team-overlay";
- el.innerHTML='<div class="team-modal"><button id="peer-close" class="team-close">✕</button><div class="micro">OPERATIONS TEAM / COOPERATIVE MISSION</div><h2>INVITE YOUR MISSION TEAM</h2><p>Work from separate browsers with assigned responsibilities. The host controls the authoritative mission; connected teammates request actions.</p><div class="team-grid"><label>Invited position<select id="peer-role"><option value="MOB">MOB / FOS</option><option value="CAOC">CAOC / Mobility</option><option value="CSpOC">CSpOC</option><option value="MEDCOM">MEDCOM</option><option value="GM">Simulated Game Master</option></select></label><button id="peer-host" class="primary">CREATE INVITE</button><button id="peer-join">JOIN BY CODE</button></div><label id="peer-label">Invite or response code</label><textarea id="peer-code" rows="5" placeholder="Your invite appears here. Or paste an invitation received from your teammate." spellcheck="false"></textarea><div class="team-grid"><button id="peer-copy">COPY CODE</button><button id="peer-answer">HOST: ACCEPT ANSWER</button></div><div id="peer-status" class="team-status">Ready to invite a member.</div><p class="team-disclaimer">Connection uses encrypted WebRTC, an external STUN lookup, and manual offer/answer exchange. Every participant needs authorization to view the exercise. Restricted military networks may require an approved relay. Do not use for actual mission communications.</p></div>';
+ el.innerHTML='<div class="team-modal"><button id="peer-close" class="team-close">✕</button><div class="micro">OPERATIONS TEAM / COOPERATIVE MISSION</div><h2>INVITE YOUR MISSION TEAM</h2><p>Work from separate browsers with assigned responsibilities. The host controls the authoritative mission; connected teammates request actions.</p><div class="team-grid"><label>Invited position<select id="peer-role"><option value="MOB">MOB / FOS</option><option value="CAOC">CAOC / Mobility</option><option value="CSpOC">CSpOC</option><option value="MEDCOM">MEDCOM</option><option value="GM">Simulated Game Master</option></select></label><button id="peer-host" class="primary">CREATE INVITE</button><button id="peer-join">JOIN BY CODE</button></div><label id="peer-label">Invite or response code</label><textarea id="peer-code" rows="5" placeholder="Your invite appears here. Or paste an invitation received from your teammate." spellcheck="false"></textarea><div class="team-grid"><button id="peer-copy">COPY CODE</button><button id="peer-copy-link">COPY INVITE LINK</button><button id="peer-answer">HOST: ACCEPT ANSWER</button></div><div id="peer-status" class="team-status">Ready to invite a member.</div><p class="team-disclaimer">Connection uses encrypted WebRTC, an external STUN lookup, and manual offer/answer exchange. Every participant needs authorization to view the exercise. Restricted military networks may require an approved relay. Do not use for actual mission communications.</p></div>';
  document.body.appendChild(el);
  $("peer-close").onclick=()=>el.remove();
  el.onclick=e=>{if(e.target===el)el.remove()};
  $("peer-host").onclick=makeInvite;$("peer-join").onclick=join;$("peer-answer").onclick=accept;
+ $("peer-copy-link").onclick=()=>{if(!st.lastInviteLink)return status("Create an invitation first.");if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(st.lastInviteLink).then(()=>status("Invitation link copied. Teammate still needs to return an answer code.")).catch(()=>status("Copy the invitation CODE instead."));else{const x=$("peer-code");x.value=st.lastInviteLink;x.select();status("Link selected. Press Ctrl+C to copy.")}};
  $("peer-copy").onclick=()=>{const e=$("peer-code");e.select();if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(e.value).then(()=>status("Copied. Send privately to your teammate.")).catch(()=>status("Select and copy the code manually."));else status("Code selected. Press Ctrl+C to copy.")};
  if(location.hash.startsWith("#opsInvite=")){$("peer-code").value=location.hash.split("#opsInvite=")[1];status("Invitation detected from link. Click JOIN BY CODE.")}
 }
@@ -50,6 +51,7 @@ async function makeInvite(){
   const invitation=enc({v:1,kind:"offer",room:st.room,id,role,sdp:pc.localDescription});
   $("peer-label").textContent="INVITATION CODE — send to "+role;
   $("peer-code").value=invitation;
+  st.lastInviteLink=location.origin+location.pathname+(location.search||"")+"#opsInvite="+invitation;
   status("Invitation ready. Teammate pastes code, clicks JOIN BY CODE, then sends their answer back.");
  }catch(e){status("Invite error: "+e.message)}
 }
@@ -89,4 +91,5 @@ function intercept(a,data){
  return true;
 }
 window.OPS_COPLAY={open,broadcast,flight,intercept,isHost:()=>st.host,isGuest:()=>st.guest,isConnected:()=>st.connected};
+ if(location.hash.startsWith("#opsInvite="))setTimeout(open,250);
 })();
