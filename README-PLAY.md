@@ -53,3 +53,29 @@ If a prior version appears, hard-refresh with Ctrl + Shift + R. GitHub Pages mus
 - Click CARDS for Event and Risk Card choices.
 - The upper two tabletop sections are printed upside down for players sitting opposite one another; the on-screen instructions remain upright.
 - You can also click the printed task squares beneath the markers; the selected area opens task guidance.
+
+
+## November 2026: Live-board features and collaboration
+
+The original MOB board is now the default view. Click original airfield sections, RFIs, task markers and aircraft counters. CAOC, CSpOC, MEDCOM and the loadout board each have active controls. Aircraft animate on MOB or theater map. Three fictional training targets (SIM-A/B/C) produce simulated strike effects, with consequences in the Mission Impact & Next Action panel. No real target data is used.
+
+MEDCOM includes sixteen named task markers, simulated patient arrivals, triage and treatment. CSpOC includes symbolic moving training satellites and support windows. These additional medical, space, OPFOR and strike mechanics are practice-only when not validated against the original instructor guide.
+
+### One asset still missing
+The exact original image MEDCOM MOB x4.png is not yet present in this repository. Upload it to the root of main using GitHub -> Add file -> Upload files -> Commit changes. The live controls work in fallback mode until the image is uploaded. CAOC's image is linked from the user's older repository.
+
+### Invite a teammate
+1. Start a game on the host browser and click INVITE TEAM.
+2. Select the teammate's role: MOB, CAOC, CSpOC, MEDCOM or GM.
+3. Click CREATE INVITE, then COPY INVITE LINK (or COPY CODE), and send privately.
+4. Teammate opens the link, clicks JOIN BY CODE, and sends the generated ANSWER CODE back.
+5. Host pastes the answer and clicks HOST: ACCEPT ANSWER.
+6. Both sides must display CONNECTED before role-specific actions synchronize.
+
+WebRTC uses encrypted peer-to-peer connections and third-party STUN lookups. Without approved TURN relay or signaling infrastructure, restricted networks may block the connection. The answer exchange is manual; a page URL alone does not join a mission.
+
+### Verification and limits
+Logic checks covered source-board interaction, RFIs and scoring, aircraft loading/flight/return, loss rules, fighter practice strikes, CSpOC support, MEDCOM task and patient flow, resource impacts, event cards, 12-turn campaigns, save/resume and a mocked role-restricted host/guest WebRTC connection. These are not a full live two-device network or all-browser visual test. Official execution sheets and instructor adjudication remain authoritative.
+
+### Distribution warning
+The public GitHub repository contains source files labeled EXECUTION ONLY. Confirm authorization and remove or restrict sensitive exercise documents before distributing invitations.
