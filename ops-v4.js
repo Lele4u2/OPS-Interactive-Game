@@ -319,7 +319,7 @@ function boardInspector(){
  const which=S.inspect,item=options.find(x=>x[0]===which)||options[0];
  let out='<div class="original-board-toolbar"><div class="tabs">'+options.map(x=>'<button data-action="inspect" data-id="'+x[0]+'" class="'+(which===x[0]?"active":"")+'">'+x[0]+'</button>').join("")+'</div><div class="board-zoom-controls"><button data-action="board-zoom" data-step="-.4">−</button><button data-action="board-reset">FIT</button><button data-action="board-zoom" data-step=".4">＋</button><button class="primary" data-action="board-focus">FOCUS FOS</button></div></div>';
  if(which==="MOB")out+='<div class="board-banner"><strong>LIVE SOURCE BOARD</strong><span>Click an airfield number, RFI box or numbered task. Every action updates this board and the game.</span></div>';
- out+='<div class="original-board-viewport" id="originalBoardScroll"><div class="original-board-stage" style="width:'+(100*S.boardZoom)+'%"><img src="'+encodeURI(item[1])+'" draggable="false" alt="Original Operation Pacific Shield '+which+' tabletop board">';
+ out+='<div class="original-board-viewport" id="originalBoardScroll"><div class="original-board-stage" style="width:'+(100*S.boardZoom)+'%"><img src="'+encodeURI(item[1])+'" draggable="false" data-action="board-image-tap" alt="Original Operation Pacific Shield '+which+' tabletop board">';
  if(which==="MOB"){
   const sectors=[
    {x:47.3,y:61.5,rfiX:8.3,rfiY:76.0,num:1},
@@ -494,8 +494,19 @@ function modalHTML(){
  return '<div class="modalwrap" id="modalwrap"><div class="modal '+(modal==="aar"?"wide":"")+'">'+(modal!=="launch"?'<button class="close flat" data-action="close">✕</button>':"")+inner+'</div></div>';
 }
 function render(){
+ const oldBoard=$("originalBoardScroll");
+ if(oldBoard&&S&&!S.boardFocus)S.boardScroll={left:oldBoard.scrollLeft,top:oldBoard.scrollTop};
  if(!S){root.innerHTML='<div class="boot"><div class="bootmark">OPS <span>/</span> PACIFIC SHIELD</div></div>'+modalHTML();return}
  root.innerHTML=renderHeader()+'<div class="layout">'+renderLeft()+renderCenter()+renderRight()+'</div>'+modalHTML();
+ if($("originalBoardScroll"))requestAnimationFrame(()=>{
+   const el=$("originalBoardScroll");if(!el)return;
+   if(S.boardFocus){
+     const cx=(selected===0||selected===3)?.28:.78,cy=selected<=1?.76:.24;
+     el.scrollLeft=Math.max(0,el.scrollWidth*cx-el.clientWidth/2);
+     el.scrollTop=Math.max(0,el.scrollHeight*cy-el.clientHeight/2);
+     S.boardFocus=false;
+   }else if(S.boardScroll){el.scrollLeft=S.boardScroll.left;el.scrollTop=S.boardScroll.top;}
+ });
  if(modal==="dice"){const d=$("rolling-die"),n=S.roll.number;let t=0;const id=setInterval(()=>{if(!d||!d.isConnected){clearInterval(id);return}d.textContent=rnd(S.roll.sides);if(++t>15){clearInterval(id);d.classList.remove("rolling");d.textContent=n;const e=$("dice-end");if(e)e.style.display="block"}},85)}
 }
 function action(e){
@@ -513,7 +524,34 @@ function action(e){
  else if(a==="task")startTask(i);
  else if(a==="tab"){tab=id;render()}
  else if(a==="view"){view=id;render()}
- else if(a==="inspect"){S.inspect=id;render()}
+ else if(a==="board-task"){S.boardPick={type:"task",i};tab="site";render()}
+ else if(a==="board-start-task"){S.boardPick={type:"task",i};startTask(i)}
+ else if(a==="board-rfi"){setSite(i);S.boardPick={type:"rfi"};tab="site";render()}
+ else if(a==="board-next-rfi"){const next=RFI_NAMES.findIndex((_,n)=>!site().rfis.includes(n));if(next>=0)requestRFI(next);else notify("Ten-RFI assessment complete.")}
+ else if(a==="board-cargo"){S.boardPick={type:"cargo"};tab="flight";render()}
+ else if(a==="board-cards"){S.boardPick={type:"cards"};tab="events";render()}
+ else if(a==="board-layer"){S.boardLayer=id;render()}
+ else if(a==="board-zoom"){S.boardZoom=Math.max(1,Math.min(3.2,Math.round(((S.boardZoom||1)+Number(target.dataset.step))*10)/10));render()}
+ else if(a==="board-reset"){S.boardZoom=1;S.boardScroll={left:0,top:0};render()}
+ else if(a==="board-focus"){S.boardZoom=2;S.boardFocus=true;render()}
+ else if(a==="board-workstation"){tab=(id==="SPACE"||id==="MEDCOM")?"support":"flight";render()}
+ else if(a==="board-image-tap"){
+   const rect=target.getBoundingClientRect();
+   const x=(e.clientX-rect.left)/rect.width*100,y=(e.clientY-rect.top)/rect.height*100;
+   const sector=y>=50?(x<50?0:1):(x>=50?2:3);
+   if(sector!==selected)setSite(sector);
+   const xs=[19.2,26.7,19.2,26.7,35,41.7,35,41.7,19.2,26.7,19.2,26.7,35,41.7,35,41.7];
+   const ys=[67.1,67.1,74.4,74.4,67.1,67.1,74.4,74.4,83.8,83.8,90.7,90.7,83.8,83.8,90.7,90.7];
+   let near=-1,distance=100;
+   for(let j=0;j<16;j++){
+     let px=xs[j],py=ys[j];if(sector===1)px+=54.5;else if(sector===2){px=94-px;py=100-py}else if(sector===3){px=45-px;py=100-py}
+     const d=Math.sqrt((x-px)**2+((y-py)/1.4)**2);
+     if(d<distance){distance=d;near=j}
+   }
+   S.boardPick=distance<5.5?{type:"task",i:near}:((sector===0&&x<17)||(sector===1&&x<72&&x>54)||(sector===2&&x>86)||(sector===3&&x>30&&x<47))?{type:"rfi"}:{type:"intro"};
+   tab="site";render();
+ }
+ else if(a==="inspect"){S.inspect=id;S.boardZoom=1;S.boardScroll={left:0,top:0};render()}
  else if(a==="cargo")changeCargo(id,Number(target.dataset.step));
  else if(a==="plan")createPlan();
  else if(a==="dispatch")dispatch();
