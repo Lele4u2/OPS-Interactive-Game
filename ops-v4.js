@@ -319,7 +319,7 @@ function startTask(i){
  log("Task "+(i+1)+" "+R.tasks[i]+" started at "+s.name+"; SIM GM completion check Turn "+(S.turn+duration)+".","SIM GM");
  S.training+=2;save();render();
 }
-function selectPlane(id){if(!S.fleet.some(p=>p.id===id))return;activePlane=id;S.selectedPlane=id;S.pilotActions++;tab="flight";cargo={people:1,forklift:1};save();render()}
+function selectPlane(id){if(!S.fleet.some(p=>p.id===id))return;activePlane=id;S.selectedPlane=id;ensureCommand();S.command.pickPlane=id;S.pilotActions++;tab="flight";cargo={people:1,forklift:1};save();render()}
 function capacity(p){return PRACTICE_SLOTS[p.type]}
 function changeCargo(id,amount){const p=plane();if(!p||p.status!=="READY"||p.at!=="MOB")return notify("This aircraft must be ready at MOB to load.");const next=Math.max(0,(cargo[id]||0)+amount);if(next>S.stock[id])return notify("Insufficient "+id+" stock at MOB.");cargo[id]=next;if(cargoWeight(cargo)>capacity(p)){cargo[id]--;return notify("Practice aircraft load is full.");}render()}
 function createPlan(){
@@ -497,7 +497,7 @@ function endTurn(){
  log("Turn "+S.turn+" planning opened.","OPS");
  save();render();
 }
-function setSite(i){if(!S.sites[i])return;selected=i;S.site=i;S.flags.selected=true;save();render()}
+function setSite(i){if(!S.sites[i])return;selected=i;S.site=i;ensureCommand();S.command.pickSite=S.sites[i].id;S.flags.selected=true;save();render()}
 function modeSwitch(m){if(!S)return;S.mode=m;save();render();notify("Mode changed to "+m+".")}
 function resetGame(){if(!confirm("Start a fresh mission? Your current progress is saved until replaced."))return;S=null;modal="launch";render()}
 function rollDice(sides){
@@ -670,6 +670,28 @@ function renderLeft(){
  const fl='<div class="panel"><div class="panel-head"><div><div class="micro">AIR COMPONENT</div><h3>AIRCRAFT ROSTER</h3></div></div>'+S.fleet.map(p=>'<div data-action="select-plane" data-plane="'+p.id+'" class="fleet-item '+(p.id===activePlane?"on":"")+'"><div class="fleet-icon">✈</div><div><b>'+p.id+' · '+p.name+'</b><small>'+h(smallStatus(p))+'</small></div></div>').join("")+'</div>';
  return '<aside class="column left">'+intro+rs+fl+'</aside>';
 }
+function renderCommander(){
+ ensureCommand();const c=S.command;
+ const queued=c.orders.filter(x=>!["CANCELLED","COMPLETE"].includes(x.status)),alerts=c.alerts.slice(0,2);
+ let html='<div class="panel command-panel" id="commander-desk"><div class="panel-head"><div><div class="micro">YOU ARE THE MISSION COMMANDER</div><h2>COMMAND YOUR AIRCRAFT</h2></div><span class="chip '+(c.auto?"ok":"bad")+'">'+(c.auto?"COMPUTER CREW ACTIVE":"CREW PAUSED")+'</span></div>';
+ html+='<p>Give an aircraft a destination and purpose. The simulated crew plans its cargo, flies your route, reports arrival and returns it according to your order.</p>';
+ html+='<div class="command-step"><div class="micro">1 / CHOOSE YOUR AIRCRAFT</div><div class="command-choices">'+S.fleet.map(p=>'<button class="'+(c.pickPlane===p.id?"active":"")+'" data-action="cmd-plane" data-id="'+p.id+'" '+(p.status==="LOST"?"disabled":"")+'>✈ '+p.id+'<small>'+h(smallStatus(p))+'</small></button>').join("")+'</div></div>';
+ html+='<div class="command-step"><div class="micro">2 / WHERE ARE YOU SENDING IT?</div><div class="command-choices">'+S.sites.map(f=>'<button class="'+(c.pickSite===f.id?"active":"")+'" data-action="cmd-site" data-fos="'+f.id+'">'+h(f.name)+'<small>'+f.people+' people · '+f.food+' food</small></button>').join("")+'</div></div>';
+ html+='<div class="command-step"><div class="micro">3 / MISSION PURPOSE</div><div class="command-choices">'+[["BUILD","ESTABLISH FOS","Team, forklift, initial supplies"],["SUPPLY","RESUPPLY","Food, fuel and ground support"],["COMBAT","FIGHTER SUPPORT","Fuel, munitions, sustainment"],["MEDICAL","MEDICAL SUPPORT","Medical team and provisions"]].map(x=>'<button class="'+(c.priority===x[0]?"active":"")+'" data-action="cmd-priority" data-id="'+x[0]+'">'+x[1]+'<small>'+x[2]+'</small></button>').join("")+'</div></div>';
+ html+='<div class="command-main"><button data-action="cmd-return" class="'+(c.returnHome?"active":"")+'">'+(c.returnHome?"✓ RETURN AIRCRAFT TO MOB":"○ HOLD AIRCRAFT AT FOS")+'</button><button class="primary" data-action="cmd-order">ISSUE MISSION ORDER →</button></div>';
+ html+='<div class="command-status"><div><b>COMPUTER AIRCREW</b><button class="'+(c.auto?"active":"")+'" data-action="cmd-auto">'+(c.auto?"● ACTIVE / PAUSE CREW":"○ PAUSED / ENGAGE CREW")+'</button></div><div><b>AUTONOMOUS MISSION TEMPO</b><button class="'+(c.autoTurns?"active":"")+'" data-action="cmd-tempo">'+(c.autoTurns?"● ON / RETURN TO MANUAL":"○ OFF / RUN ON ITS OWN")+'</button></div></div>';
+ html+='<p class="command-notice">Normal: you choose routes, the computer executes. Autonomous tempo: the computer also plans routine resupply and advances turns. You can pause at any time. All AI plans are practice decisions, not official flight orders.</p>';
+ html+='<div class="actions"><button data-action="cmd-recommend">ASK CREW FOR BEST ROUTE</button><button data-action="cmd-tick">EXECUTE NEXT ACTION NOW</button></div>';
+ if(queued.length){
+  html+='<div class="command-queue"><div class="micro">LIVE ORDER QUEUE · '+queued.length+' ACTIVE / PENDING</div>';
+  for(const o of queued.slice(-8)){
+   const dest=S.sites.find(x=>x.id===o.site);
+   html+='<div class="command-order"><div><b>#'+o.seq+' · '+h(o.aircraft)+' → '+h(dest?.name||String(o.site))+'</b><small>'+h(o.priority)+' · '+h(o.status)+' · '+(o.returnHome?"Return MOB":"Hold forward")+'</small></div>'+(["QUEUED","HOLD"].includes(o.status)?'<button data-action="cmd-cancel" data-sequence="'+o.seq+'">CANCEL</button>':'')+'</div>';
+  }html+='</div>';
+ }
+ if(alerts.length)html+='<div class="command-alerts">'+alerts.map(a=>'<div class="command-alert"><b>CREW REPORT · T'+a.turn+'</b><p>'+h(a.message)+'</p></div>').join("")+'</div>';
+ return html+'</div>';
+}
 function renderCoach(){
  const t=tutorial();
  if(t)return '<div class="panel guide" id="coach"><div class="micro">GUIDED ON-BOARD TRAINING</div><div class="guide-counter"><div class="stepno">'+(t.index+1)+'</div><h3>'+h(t.step[0])+'</h3></div><p>'+h(t.step[1])+'</p><div class="progress"><span style="width:'+((t.index+(t.step[2]?1:0))/t.total*100)+'%"></span></div><div class="guide-actions"><button data-action="guide">SHOW ME WHERE</button><button data-action="help">WHY?</button></div>'+(t.done?'<div class="status success">All tutorial milestones completed — continue free play!</div>':'')+'</div>';
@@ -687,7 +709,7 @@ function renderImpact(){
  rows.map(x=>'<div class="impact-row '+(x.level==="success"?"success":"warning")+'"><b>TURN '+x.turn+' · '+(x.level==="success"?"MISSION PROGRESS":"ACTION REQUIRED")+'</b><p>'+h(x.text)+'</p></div>').join("")+'</div>';
 }
 function renderCenter(){
- return '<main class="column center">'+renderCoach()+'<div class="panel"><div class="panel-head"><div><div class="micro">ORIGINAL BOARD / LIVE GAME</div><h2>THE ORIGINAL OPS BOARD — PLAYABLE</h2></div><span class="chip '+(moving?"bad":"ok")+'">'+(moving?"AIRCRAFT IN FLIGHT":"TACTICAL OVERVIEW")+'</span></div><div class="tabs" style="margin-bottom:10px"><button data-action="view" data-id="map" class="'+(view==="map"?"active":"")+'">MISSION MAP</button><button data-action="view" data-id="board" class="'+(view==="board"?"active":"")+'">PLAY ORIGINAL BOARD</button><button data-action="view" data-id="timeline" class="'+(view==="timeline"?"active":"")+'">MISSION TRACK</button></div>'+(view==="map"?renderMap():view==="board"?boardInspector():renderTimeline())+'</div><div class="panel"><div class="panel-head"><div><div class="micro">SITE DEVELOPMENT</div><h3>FOUR FORWARD OPERATING SITES</h3></div></div><div class="site-actions">'+S.sites.map((s,i)=>'<button class="'+(selected===i?"primary":"")+'" data-action="select-site" data-index="'+i+'">'+s.name+' / '+s.country+'<br><span style="font-size:10px;font-weight:500">'+shortSite(s)+'</span></button>').join("")+'</div></div><div class="panel"><div class="panel-head"><div><div class="micro">LIVE OPERATIONS NET</div><h3>COMMAND LOG</h3></div><button class="flat" data-action="aar">VIEW AAR ↗</button></div><div class="log">'+S.log.slice(0,16).map(x=>'<div class="log-entry"><b>T'+x.turn+' / '+h(x.who)+'</b> · '+h(x.msg)+'</div>').join("")+'</div></div>'+renderImpact()+'</main>';
+ return '<main class="column center">'+renderCommander()+renderCoach()+'<div class="panel"><div class="panel-head"><div><div class="micro">ORIGINAL BOARD / LIVE GAME</div><h2>THE ORIGINAL OPS BOARD — PLAYABLE</h2></div><span class="chip '+(moving?"bad":"ok")+'">'+(moving?"AIRCRAFT IN FLIGHT":"TACTICAL OVERVIEW")+'</span></div><div class="tabs" style="margin-bottom:10px"><button data-action="view" data-id="map" class="'+(view==="map"?"active":"")+'">MISSION MAP</button><button data-action="view" data-id="board" class="'+(view==="board"?"active":"")+'">PLAY ORIGINAL BOARD</button><button data-action="view" data-id="timeline" class="'+(view==="timeline"?"active":"")+'">MISSION TRACK</button></div>'+(view==="map"?renderMap():view==="board"?boardInspector():renderTimeline())+'</div><div class="panel"><div class="panel-head"><div><div class="micro">SITE DEVELOPMENT</div><h3>FOUR FORWARD OPERATING SITES</h3></div></div><div class="site-actions">'+S.sites.map((s,i)=>'<button class="'+(selected===i?"primary":"")+'" data-action="select-site" data-index="'+i+'">'+s.name+' / '+s.country+'<br><span style="font-size:10px;font-weight:500">'+shortSite(s)+'</span></button>').join("")+'</div></div><div class="panel"><div class="panel-head"><div><div class="micro">LIVE OPERATIONS NET</div><h3>COMMAND LOG</h3></div><button class="flat" data-action="aar">VIEW AAR ↗</button></div><div class="log">'+S.log.slice(0,16).map(x=>'<div class="log-entry"><b>T'+x.turn+' / '+h(x.who)+'</b> · '+h(x.msg)+'</div>').join("")+'</div></div>'+renderImpact()+'</main>';
 }
 function renderTimeline(){
  return '<div class="stack">'+S.plans.slice().reverse().map(p=>'<div class="missioncard"><div class="micro">'+h(p.id)+' · T'+p.turn+'</div><strong>'+h(p.aircraft)+' → FOS '+p.site+'</strong><p>MISSION STATUS: '+p.status+' · '+cargoWeight(p.load)+' loaded counters</p></div>').join("")+'<div class="callout">Aircraft must return after a subsequent turn. Missions are saved between visits.</div></div>';
@@ -909,6 +931,16 @@ function action(e){
  else if(a==="menu"){modal="menu";render()}
  else if(a==="new-game")resetGame();
  else if(a==="save")save(true);
+ else if(a==="cmd-plane"){ensureCommand();S.command.pickPlane=id;save();render()}
+ else if(a==="cmd-site"){ensureCommand();const idx=S.sites.findIndex(x=>x.id===Number(target.dataset.fos));if(idx>=0)setSite(idx)}
+ else if(a==="cmd-priority"){ensureCommand();S.command.priority=id;save();render()}
+ else if(a==="cmd-return"){ensureCommand();S.command.returnHome=!S.command.returnHome;save();render()}
+ else if(a==="cmd-order"){issueOrder()}
+ else if(a==="cmd-cancel"){cancelOrder(Number(target.dataset.sequence))}
+ else if(a==="cmd-auto"){ensureCommand();S.command.auto=!S.command.auto;log("Computer crew "+(S.command.auto?"engaged":"paused")+" by commander.","OPS");save();render();if(S.command.auto)queueCommandSoon()}
+ else if(a==="cmd-tempo"){ensureCommand();S.command.autoTurns=!S.command.autoTurns;log("Automatic turn progression "+(S.command.autoTurns?"enabled":"disabled")+" by commander.","OPS");save();render()}
+ else if(a==="cmd-tick"){commandPulse(true)}
+ else if(a==="cmd-recommend"){recommendOrder()}
  else if(a==="invite"){if(window.OPS_COPLAY?.open)window.OPS_COPLAY.open();else notify("Team connection is still loading. Try again.")}
  else if(a==="sound"){sound()}
  else if(a==="difficulty"){S.diff=id;log("Computer challenge difficulty changed to "+id,"OPS");save();render();notify("Opponent difficulty: "+id)}
