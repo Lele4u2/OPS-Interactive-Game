@@ -13,8 +13,6 @@ boards: {
   CAOC: "CAOC Board.png",
   SPACE: "CSPOC Board.png",
   MEDCOM: "MEDCOM MOB x4.png"
-},
-
   },
 
   RFIs: [
