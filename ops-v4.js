@@ -346,7 +346,7 @@ function renderMap(){
 }
 
 function boardInspector(){
- S.inspect??="MOB";S.boardZoom??=1;S.boardLayer??="tasks";S.boardPick??={type:"intro"};
+ S.inspect??="MOB";S.boardZoom??=1;S.boardLayer??="tasks";S.boardPick??={type:"intro"};S.medicalBoards??=Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8}));
  const options=[
   ["MOB","MOB Board X4.png"],["CAOC","https://raw.githubusercontent.com/Lele4u2/Operation-Pacific-Shield-Interactive-Simulator/main/CAOC Board.png"],
   ["SPACE","CSPOC Board.png"],["MEDCOM","MEDCOM MOB x4.png"],["LOAD","MEDCOM C-130, C-17 and C-5 Loadout Board.png"]
@@ -399,8 +399,20 @@ function boardInspector(){
     out+='<button class="board-other-token" style="left:32%;top:68%" data-action="support" data-id="space">◉ REQUEST SPACE WARNING</button>';
     out+='<button class="board-other-token" style="left:70%;top:68%" data-action="tab" data-id="support">CHECK CSpOC STATUS</button>';
   }else if(which==="MEDCOM"){
-    out+='<button class="board-other-token" style="left:30%;top:68%" data-action="support" data-id="medical">✚ REQUEST MEDCOM</button>';
-    out+='<button class="board-other-token" style="left:72%;top:68%" data-action="tab" data-id="support">CHECK MEDICAL STATUS</button>';
+    out+='<button class="board-other-token" style="left:49%;top:50%" data-action="support" data-id="medical">✚ REQUEST MEDCOM SUPPORT</button>';
+    const options=[{x:26,y:47},{x:74,y:47},{x:26,y:10},{x:74,y:10}];
+    options.forEach((pos,i)=>out+='<button class="board-med-picker '+((S.medicalBoard||0)===i?"current":"")+'" style="left:'+pos.x+'%;top:'+pos.y+'%" data-action="med-board" data-index="'+i+'">MEDCOM '+(i+1)+'</button>');
+    const xs=[23,30,23,30,38,45,38,45,23,30,23,30,38,45,38,45];
+    const ys=[61,61,70,70,61,61,70,70,80,80,90,90,80,80,90,90];
+    const k=S.medicalBoard||0,m=S.medicalBoards[k];
+    for(let i=0;i<16;i++){
+      let x=xs[i],y=ys[i];
+      if(k===1)x+=50;
+      if(k===2){x=50-x;y=100-y}
+      if(k===3){x=100-x;y=100-y}
+      out+='<button class="board-med-task '+(m.tasks.includes(i)?"complete":"")+'" style="left:'+x+'%;top:'+y+'%" data-action="med-task" data-index="'+i+'" title="'+MEDICAL_TASKS[i]+'">'+(m.tasks.includes(i)?"✓":i+1)+'</button>';
+    }
+    out+='<button class="board-other-token" style="left:50%;top:96%" data-action="med-incident">TRAINING PATIENT ARRIVAL</button>';
   }else if(which==="LOAD"){
     const choices=[["C130-A",18],["C17-A",49],["C5-A",79]];
     for(const [id,x] of choices)out+='<button class="board-other-token" style="left:'+x+'%;top:82%" data-action="select-plane" data-plane="'+id+'">✈ LOAD '+id+'</button>';
@@ -412,6 +424,17 @@ function boardInspector(){
 }
 function boardHelp(which){
  const f=site(),p=S.boardPick||{type:"intro"},brief='<div class="board-facts"><span>'+f.name+'</span><span>'+f.people+' PEOPLE</span><span>'+f.tasks.length+'/16 TASKS</span><span>'+f.rfis.length+'/10 RFIs</span></div>';
+ if(which==="MEDCOM"){
+  const m=S.medicalBoards?.[S.medicalBoard||0];
+  if(!m)return '<div class="callout">Select a MEDCOM board to begin.</div>';
+  let guide='<div class="micro">MEDICAL BOARD '+((S.medicalBoard||0)+1)+' / PATIENT CARE</div><h3>MEDCOM LIVE TASK BOARD</h3><p>Select a task number on the original MEDCOM artwork, start a medical capability, or simulate an arriving patient. Requirements and timing beyond the named board tasks are practice-only.</p>';
+  guide+='<div class="board-facts"><span>'+m.tasks.length+'/16 TASKS</span><span>'+m.supply+' PRACTICE SUPPLIES</span><span>RED '+m.patients.red+'</span><span>YELLOW '+m.patients.yellow+'</span><span>GREEN '+m.patients.green+'</span></div>';
+  if(p.type==="med-task"){
+    const i=p.i;guide+='<div class="board-instructions"><b>MEDCOM TASK '+(i+1)+': '+h(MEDICAL_TASKS[i])+'</b>. Activating this capability uses one practice medical supply and finishes on a later turn. Treat the original sheet as the authority for additional costs.</div><div class="actions"><button class="primary" data-action="med-start" data-index="'+i+'" '+(m.tasks.includes(i)||m.pending.some(x=>x.i===i)?"disabled":"")+'>START TASK '+(i+1)+'</button></div>';
+  }
+  guide+='<div class="actions"><button data-action="med-incident">SIMULATE PATIENT ARRIVAL</button><button class="primary" data-action="med-triage">TRIAGE / TREAT</button><button data-action="support" data-id="medical">REQUEST MEDICAL SUPPORT</button></div>';
+  return guide;
+ }
  if(which!=="MOB"){
   const text=which==="CAOC"?"Use CAOC flight allocation and airlift planning to approve routes and launch aircraft.":which==="LOAD"?"The source loadout board is a reference for aircraft capacity and equipment. Plan practice chalks in the AIRLIFT workbench.":which==="SPACE"?"Space support can counter a computer-generated disruption during a turn.":"MEDCOM support can mitigate practice demoralization penalties.";
   return '<div class="micro">ORIGINAL '+which+' BOARD / LIVE WORKSTATION</div><h3>'+which+' — WHAT YOU DO HERE</h3><p>'+text+'</p><div class="actions"><button class="primary" data-action="board-workstation" data-id="'+which+'">OPEN LIVE CONTROLS</button><button data-action="rules">OPEN GUIDELINES</button></div>';
