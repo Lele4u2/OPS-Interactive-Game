@@ -65,14 +65,14 @@ function game(mode,diff){
    {id:"C5-A",type:"C5",name:"C-5 Galaxy",at:"MOB",status:"READY",load:{},landed:0,until:0}
   ],
   plans:[],events:[],effects:[],log:[],impact:[],strikes:[],targetId:"SIM-A",cardChoice:{event:-1,risk:-1},flags:{selected:false,rfi:false,loaded:false,dispatched:false,arrived:false,returned:false,task:false,card:false},
-  ratings:{operations:0,decisions:0,logistics:0},medicalBoards:Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8})),medicalBoard:0,support:{space:0,medical:0,requested:{}},sound:false,history:[],
+  ratings:{operations:0,decisions:0,logistics:0},medicalBoards:Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8})),medicalBoard:0,satellites:[{id:"M1",name:"ISR Training Satellite",usedTurn:0},{id:"M2",name:"SATCOM Training Satellite",usedTurn:0},{id:"L1",name:"Space Warning Satellite",usedTurn:0}],selectedSatellite:"M1",support:{space:0,medical:0,requested:{}},sound:false,history:[],
   objective:{"name":"Activate and sustain forward operating sites","target":25}
  };
 }
 function log(msg,who="OPS"){if(!S)return;S.log.unshift({turn:S.turn,who,msg,time:new Date().toLocaleTimeString()});S.log=S.log.slice(0,120)}
 function notify(msg){const old=$("toastpop");if(old)old.remove();const d=document.createElement("div");d.id="toastpop";d.className="toast";d.textContent=msg;document.body.appendChild(d);clearTimeout(toastTimer);toastTimer=setTimeout(()=>d.remove(),3800)}
 function save(show=false){if(!S)return;try{localStorage.setItem(KEY,JSON.stringify(S));if(show)notify("Mission saved on this device.")}catch(e){notify("Browser save unavailable.")}window.OPS_COPLAY?.broadcast?.(S)}
-function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];S.medicalBoards??=Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8}));S.medicalBoard??=0;S.sites.forEach(x=>x.shortageDays??=0);selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
+function loadSaved(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||s.version!==4)throw Error();S=s;S.support??={space:0,medical:0,requested:{}};S.impact??=[];S.strikes??=[];S.medicalBoards??=Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8}));S.medicalBoard??=0;S.satellites??=[{id:"M1",name:"ISR Training Satellite",usedTurn:0},{id:"M2",name:"SATCOM Training Satellite",usedTurn:0},{id:"L1",name:"Space Warning Satellite",usedTurn:0}];S.selectedSatellite??="M1";S.sites.forEach(x=>x.shortageDays??=0);selected=S.site||0;activePlane=S.selectedPlane||"C130-A";modal="";render()}catch(e){notify("No V4 mission save found on this browser.")}}
 function start(mode,diff){
  S=game(mode,diff);modal="";selected=0;activePlane="C130-A";tab="site";view="board";cargo={people:1,forklift:1};
  log("Mission initialized: "+mode.toUpperCase()+" / "+diff.toUpperCase()+".","SIM GM");
@@ -396,8 +396,13 @@ function boardInspector(){
     });
     out+='<button class="board-other-token" style="left:50%;top:82%" data-action="board-cargo">VIEW FLIGHT PLANS / ATO</button>';
   }else if(which==="SPACE"){
-    out+='<button class="board-other-token" style="left:32%;top:68%" data-action="support" data-id="space">◉ REQUEST SPACE WARNING</button>';
-    out+='<button class="board-other-token" style="left:70%;top:68%" data-action="tab" data-id="support">CHECK CSpOC STATUS</button>';
+    const satList=S.satellites||[];
+    const points=[{x:19,y:25},{x:49,y:55},{x:78,y:37}];
+    satList.forEach((sat,i)=>{
+      const p=points[i]||points[0];
+      out+='<button class="board-satellite '+(S.selectedSatellite===sat.id?"selected":"")+'" style="left:'+p.x+'%;top:'+p.y+'%" data-action="board-satellite" data-id="'+sat.id+'">🛰 '+sat.id+'<small>'+sat.name+'</small></button>';
+    });
+    out+='<button class="board-other-token" style="left:50%;top:83%" data-action="sat-support" data-id="'+(S.selectedSatellite||"M1")+'">▶ TASK SELECTED SATELLITE</button>';
   }else if(which==="MEDCOM"){
     out+='<button class="board-other-token" style="left:49%;top:50%" data-action="support" data-id="medical">✚ REQUEST MEDCOM SUPPORT</button>';
     const options=[{x:26,y:47},{x:74,y:47},{x:26,y:10},{x:74,y:10}];
@@ -424,6 +429,11 @@ function boardInspector(){
 }
 function boardHelp(which){
  const f=site(),p=S.boardPick||{type:"intro"},brief='<div class="board-facts"><span>'+f.name+'</span><span>'+f.people+' PEOPLE</span><span>'+f.tasks.length+'/16 TASKS</span><span>'+f.rfis.length+'/10 RFIs</span></div>';
+ if(which==="SPACE"){
+  S.satellites??=[{id:"M1",name:"ISR Training Satellite",usedTurn:0},{id:"M2",name:"SATCOM Training Satellite",usedTurn:0},{id:"L1",name:"Space Warning Satellite",usedTurn:0}];
+  const sat=S.satellites.find(x=>x.id===S.selectedSatellite)||S.satellites[0];
+  return '<div class="micro">LIVE SPACE BOARD / TRACKS</div><h3>🛰 '+h(sat.name)+'</h3><p>The original CSpOC board shows satellite orbital tracks. Select a moving training token on the artwork to designate support, then task it. The animated markers represent practice assets, not exact orbital ephemerides.</p><div class="board-facts"><span>'+h(sat.id)+'</span><span>'+(sat.usedTurn===S.turn?"USED THIS TURN":"AVAILABLE THIS TURN")+'</span><span>'+(S.support?.space>=S.turn?"SUPPORT ACTIVE":"SUPPORT NOT ACTIVE")+'</span></div><div class="actions"><button class="primary" data-action="sat-support" data-id="'+sat.id+'" '+(sat.usedTurn===S.turn?"disabled":"")+'>TASK SATELLITE</button><button data-action="tab" data-id="support">SPACE SUPPORT STATUS</button><button data-action="rules">RULES GUIDE</button></div>';
+ }
  if(which==="MEDCOM"){
   const m=S.medicalBoards?.[S.medicalBoard||0];
   if(!m)return '<div class="callout">Select a MEDCOM board to begin.</div>';
@@ -549,6 +559,17 @@ function renderEvents(){
 function renderRight(){
  let current=tab;if(!["site","flight","events","support"].includes(current))current="site";
  return '<aside class="column right"><div class="panel"><div class="panel-head"><div><div class="micro">MISSION WORKBENCH</div><h3>COMMAND ACTIONS</h3></div></div><div class="tabs" style="margin-bottom:14px"><button data-action="tab" data-id="site" class="'+(current==="site"?"active":"")+'">FOS</button><button data-action="tab" data-id="flight" class="'+(current==="flight"?"active":"")+'">AIRLIFT</button><button data-action="tab" data-id="events" class="'+(current==="events"?"active":"")+'">GM CARDS</button><button data-action="tab" data-id="support" class="'+(current==="support"?"active":"")+'">SUPPORT</button></div>'+(current==="site"?renderSite():current==="flight"?renderFlight():current==="events"?renderEvents():renderSupport())+'</div></aside>';
+}
+function useSatellite(id){
+ S.satellites??=[{id:"M1",name:"ISR Training Satellite",usedTurn:0},{id:"M2",name:"SATCOM Training Satellite",usedTurn:0},{id:"L1",name:"Space Warning Satellite",usedTurn:0}];
+ const a=S.satellites.find(x=>x.id===id)||S.satellites[0];
+ if(a.usedTurn===S.turn)return notify(a.name+" was already tasked this turn.");
+ a.usedTurn=S.turn;S.selectedSatellite=a.id;
+ S.support??={space:0,medical:0,requested:{}};
+ S.support.space=S.turn+1;
+ S.training+=3;
+ S.impact.unshift({turn:S.turn,level:"success",text:"CSpOC assigned "+a.name+" for simulated warning support through the next turn. This may counter one OPFOR disruption."});
+ log("CSpOC training asset "+a.id+" tasked for space support through Turn "+(S.turn+1)+".","SIM CSpOC");save();render();
 }
 function medAction(i){
  S.medicalBoards??=Array.from({length:4},(_,i)=>({name:"MEDCOM "+(i+1),tasks:[],pending:[],patients:{red:0,yellow:0,green:0},supply:8}));
@@ -683,6 +704,8 @@ function action(e){
  else if(a==="return")returnFlight();
  else if(a==="fighter-assign")deployFighter();
  else if(a==="fighter-launch")fighterSortie();
+ else if(a==="board-satellite"){S.selectedSatellite=id;save();render()}
+ else if(a==="sat-support"){useSatellite(id)}
  else if(a==="med-board"){S.medicalBoard=i;S.boardPick={type:"intro"};render()}
  else if(a==="med-task"){S.boardPick={type:"med-task",i};render()}
  else if(a==="med-start"){medAction(i)}
