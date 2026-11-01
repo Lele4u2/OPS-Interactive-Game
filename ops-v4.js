@@ -169,6 +169,7 @@ function resolveC5(p,s){
 }
 function animate(from,to,done,label){
  if(moving)return;moving=true;
+ if(view==="board"&&S.inspect&&S.inspect!=="MOB")view="map";
  const onPhysical=view==="board"&&(!S.inspect||S.inspect==="MOB");
  const d1=onPhysical?boardLocation(from):point(from),d2=onPhysical?boardLocation(to):point(to);
  S.flightFX={from,to,label};render();window.OPS_COPLAY?.flight?.(from,to,label);
