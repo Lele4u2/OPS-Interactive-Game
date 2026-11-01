@@ -80,6 +80,183 @@ function start(mode,diff){
  log("The simulated GM handles computer adjudication. Training load capacities and scenario cards are not official OPS data.","SIM GM");
  save();render();startCommandClock();
 }
+
+/* COMMANDER'S ORDER DESK: source-aligned decisions with labeled practice-only autonomous crew. */
+function ensureCommand(){
+ if(!S)return;
+ S.command??={auto:S.mode==="computer",autoTurns:false,pickPlane:"C130-A",pickSite:1,priority:"BUILD",returnHome:true,orders:[],completed:0,alerts:[]};
+ S.command.orders??=[];S.command.alerts??=[];S.command.pickPlane??="C130-A";S.command.pickSite??=1;S.command.priority??="BUILD";
+}
+function startCommandClock(){
+ if(commandTimer!==null)clearInterval(commandTimer);
+ commandTimer=setInterval(()=>{
+  if(!S||!S.command?.auto||S.finished||moving||window.OPS_COPLAY?.isGuest?.())return;
+  commandPulse(false);
+ },12000);
+}
+function queueCommandSoon(){
+ if(!S?.command?.auto)return;
+ setTimeout(()=>{if(S?.command?.auto&&!moving&&!window.OPS_COPLAY?.isGuest?.())commandPulse(false)},600);
+}
+function crewAlert(message){
+ ensureCommand();S.command.alerts.unshift({turn:S.turn,message});S.command.alerts=S.command.alerts.slice(0,12);
+ S.impact??=[];S.impact.unshift({turn:S.turn,level:"warning",text:message});log("Computer crew: "+message,"SIM CREW");
+}
+function recommendOrder(){
+ ensureCommand();
+ const available=S.fleet.find(p=>p.status==="READY"&&p.at==="MOB");
+ if(!available){crewAlert("No aircraft ready at MOB. Return an aircraft on a later turn or wait for a repair.");save();render();return}
+ const ranked=S.sites.map((x,i)=>({i,site:x,
+  score:x.people===0?100:x.food===0?90:x.forklift===0?70:x.fuel===0?40:20-x.tasks.length}));
+ ranked.sort((a,b)=>b.score-a.score);
+ const dest=ranked[0].site;
+ const pri=dest.people===0?"BUILD":dest.food===0?"SUPPLY":dest.forklift===0?"BUILD":"COMBAT";
+ S.command.pickPlane=available.id;S.command.pickSite=dest.id;S.command.priority=pri;
+ log("SIM CREW RECOMMENDS "+available.id+" → "+dest.name+" for "+pri+". Commander must issue the order.","SIM CREW");
+ render();save();
+}
+function issueOrder(){
+ if(!S||S.finished)return notify("Campaign is finished. Start a new mission.");
+ ensureCommand();
+ const c=S.command,pl=S.fleet.find(p=>p.id===c.pickPlane),destination=S.sites.find(x=>x.id===c.pickSite);
+ if(!pl||!destination)return notify("Select an aircraft and a destination.");
+ if(pl.status==="LOST")return notify("This aircraft is lost and cannot receive an order.");
+ if(c.orders.filter(x=>x.aircraft===pl.id&&!["COMPLETE","CANCELLED"].includes(x.status)).length>=4)return notify("This aircraft already has four pending legs. Execute or cancel an order first.");
+ const order={seq:Math.max(0,...c.orders.map(x=>x.seq))+1,aircraft:pl.id,site:destination.id,priority:c.priority,returnHome:c.returnHome,status:"QUEUED",createdTurn:S.turn,departedTurn:null,completedTurn:null,planId:null};
+ c.orders.push(order);log("COMMANDER ORDER "+order.seq+": "+pl.id+" → "+destination.name+", "+c.priority+" priority, "+(c.returnHome?"return MOB":"hold at FOS")+".","COMMANDER");
+ S.training+=1;tab="flight";view="map";save();render();
+ if(c.auto)queueCommandSoon();
+}
+function cancelOrder(seq){
+ ensureCommand();
+ const o=S.command.orders.find(x=>x.seq===seq);
+ if(!o)return notify("Order not found.");
+ if(o.status!=="QUEUED"&&o.status!=="HOLD")return notify("Once an aircraft is loaded or airborne, the order cannot be cancelled without a new mission decision.");
+ o.status="CANCELLED";log("Commander cancelled queued order "+seq+".","COMMANDER");save();render();
+}
+function crewLoad(order,p,s){
+ const load={people:0,forklift:0,fuel:0,food:0,ammo:0,missile:0};
+ const profiles={
+  BUILD:[["people",s.people<5?1:s.people<10?1:0],["forklift",s.forklift<1?1:0],["food",s.food<2?2:1],["fuel",s.fuel<1?1:0]],
+  SUPPLY:[["food",s.food<3?3:2],["fuel",s.fuel<3?2:1],["people",0]],
+  COMBAT:[["fuel",2],["ammo",2],["missile",2],["food",1]],
+  MEDICAL:[["people",1],["food",2],["fuel",1]]
+ };
+ let remaining=capacity(p);
+ for(const [key,count] of profiles[order.priority]||profiles.BUILD){
+  if(remaining<=0)break;
+  const amount=Math.min(Math.max(0,count),S.stock[key]||0,remaining);
+  load[key]=amount;remaining-=amount;
+ }
+ // Palletized supplies need a forklift; defer these counters rather than pretending they unload.
+ const hasGoods=["food","fuel","ammo","missile"].some(k=>load[k]>0);
+ if(hasGoods&&s.forklift===0&&load.forklift===0&&S.stock.forklift>0&&remaining>0){load.forklift=1;remaining--}
+ if(hasGoods&&s.forklift===0&&load.forklift===0){
+  for(const k of ["food","fuel","ammo","missile"])load[k]=0;
+ }
+ return load;
+}
+function crewMakePlan(order){
+ const p=S.fleet.find(x=>x.id===order.aircraft),s=S.sites.find(x=>x.id===order.site);
+ if(!p||!s){order.status="HOLD";crewAlert("Invalid aircraft or site in Order "+order.seq);return false}
+ if(p.status!=="READY"||p.at!=="MOB")return false;
+ if(s.blockedUntil>S.turn||!s.access){order.status="HOLD";crewAlert("Order "+order.seq+" awaiting site access at "+s.name+". Consider rerouting.");return false}
+ const load=crewLoad(order,p,s),total=cargoWeight(load);
+ if(!total){order.status="HOLD";crewAlert("Order "+order.seq+" cannot load "+order.priority+" cargo at MOB. Resupply or change the priority.");return false}
+ for(const [key,count] of Object.entries(load))S.stock[key]-=count;
+ p.status="PLANNED";p.load={...load};
+ const pl={id:"ATO-"+String(S.plans.length+1).padStart(3,"0"),aircraft:p.id,site:s.id,load:{...load},status:"APPROVED",turn:S.turn,simulated:true,orderSeq:order.seq,priority:order.priority};
+ S.plans.push(pl);order.planId=pl.id;order.status="READY";
+ S.flags.loaded=true;S.training+=3;
+ log("SIM CAOC prepared Commander Order "+order.seq+" — "+p.id+" to "+s.name+"; "+total+" practice cargo slot(s).","SIM CAOC");
+ return true;
+}
+function crewRoutine(){
+ // Support actions are delegated only after the commander engages automated tempo.
+ const f=S.sites.find(x=>x.people>=5);
+ if(!f)return;
+ const old=selected,idx=S.sites.indexOf(f);
+ selected=idx;
+ if(f.rfis.length<10){
+  const next=RFI_NAMES.findIndex((_,j)=>!f.rfis.includes(j));
+  if(next>=0)requestRFI(next);
+ }else{
+  const i=[1,0,4,9,13].find(i=>!f.tasks.includes(i)&&!f.pending.some(t=>t.i===i)&&(R.prerequisites?.[i]||[]).every(j=>f.tasks.includes(j))&&(i!==9||f.forklift>0));
+  if(i!==undefined)startTask(i);
+ }
+ selected=old;
+}
+function crewAutoRecommendAndOrder(){
+ ensureCommand();
+ if(!S.command.autoTurns)return false;
+ const ready=S.fleet.find(p=>p.status==="READY"&&p.at==="MOB");
+ if(!ready)return false;
+ const ranked=S.sites.map(s=>({
+  s,score:s.people===0?100:s.food===0?85:s.forklift===0?70:s.fuel===0?45:15
+ })).sort((a,b)=>b.score-a.score);
+ const dest=ranked[0]?.s;if(!dest)return false;
+ S.command.pickPlane=ready.id;S.command.pickSite=dest.id;
+ S.command.priority=dest.people===0||dest.forklift===0?"BUILD":dest.food===0?"SUPPLY":"COMBAT";
+ const order={seq:Math.max(0,...S.command.orders.map(x=>x.seq))+1,aircraft:ready.id,site:dest.id,priority:S.command.priority,returnHome:true,status:"QUEUED",createdTurn:S.turn,departedTurn:null,planId:null,delegated:true};
+ S.command.orders.push(order);
+ log("DELEGATED CREW ROUTE: "+ready.id+" → "+dest.name+" to correct "+S.command.priority.toLowerCase()+" shortfall.","SIM CREW");
+ return true;
+}
+function commandPulse(manual=false){
+ if(!S||S.finished||moving||commandWorking)return false;
+ if(window.OPS_COPLAY?.isGuest?.())return false;
+ ensureCommand();
+ const c=S.command;if(!c.auto&&!manual)return false;
+ commandWorking=true;
+ try{
+  // Aircraft return priority: only those whose commander ordered return.
+  for(const o of c.orders){
+   const p=S.fleet.find(x=>x.id===o.aircraft);
+   if(!p)continue;
+   if(o.status==="DELIVERED"){
+    if(!o.returnHome){o.status="COMPLETE";o.completedTurn=S.turn;c.completed++;continue}
+    if(p.status==="LOST"){o.status="COMPLETE";c.completed++;continue}
+    if(p.status==="AT FOS"&&S.turn>p.landed){
+      activePlane=p.id;returnFlight();o.status="RETURNING";save();return true;
+    }
+   }else if(o.status==="RETURNING"&&p.status==="READY"&&p.at==="MOB"){
+    o.status="COMPLETE";o.completedTurn=S.turn;c.completed++;
+   }
+  }
+  for(const o of c.orders){
+   if(o.status==="CANCELLED"||o.status==="COMPLETE"||o.status==="DELIVERED"||o.status==="RETURNING")continue;
+   const p=S.fleet.find(x=>x.id===o.aircraft);if(!p)continue;
+   if(o.status==="QUEUED"||o.status==="HOLD"){
+    if(p.status==="READY"&&p.at==="MOB"){
+      if(!crewMakePlan(o))continue;
+    }else continue;
+   }
+   if(o.status==="READY"&&p.status==="PLANNED"){
+     const pl=S.plans.find(x=>x.id===o.planId);
+     if(!pl||pl.status!=="APPROVED"){o.status="HOLD";continue}
+     const site=S.sites.find(x=>x.id===pl.site);
+     if(site.blockedUntil>S.turn){crewAlert("Order "+o.seq+" held due to new restriction at "+site.name+".");continue}
+     activePlane=p.id;view="map";dispatch();o.status="AIRBORNE";o.departedTurn=S.turn;save();return true;
+   }
+   if(o.status==="AIRBORNE"&&p.status!=="FLYING"){
+     o.status=p.status==="LOST"?"COMPLETE":"DELIVERED";
+     if(o.status==="COMPLETE")c.completed++;
+   }
+  }
+  if(c.autoTurns){
+   crewRoutine();
+   const pending=c.orders.some(x=>["READY","QUEUED","AIRBORNE","RETURNING"].includes(x.status));
+   const arrived=c.orders.some(x=>x.status==="DELIVERED");
+   if(!pending&&!arrived)crewAutoRecommendAndOrder();
+   else if(arrived||!c.orders.some(x=>x.status==="READY")){
+     if(S.turn<12){endTurn();return true}
+   }
+  }
+  save();render();
+  return false;
+ }finally{commandWorking=false}
+}
+
 function site(){return S.sites[selected]}
 function plane(){return S.fleet.find(x=>x.id===activePlane)}
 function point(p){if(p==="MOB")return HOME;const s=S.sites.find(x=>x.id===p);return s?{x:s.x,y:s.y}:HOME}
