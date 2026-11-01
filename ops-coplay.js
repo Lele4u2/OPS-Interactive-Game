@@ -11,10 +11,20 @@ function waitIce(pc){return new Promise(resolve=>{if(pc.iceGatheringState==="com
 function send(ch,obj){if(ch?.readyState==="open"){try{ch.send(JSON.stringify(obj))}catch(e){status("Message could not be sent: "+e.message)}}}
 function authorized(role,a,p){
  if(role==="GM")return !["new-game","start","resume","difficulty","invite"].includes(a);
+ if(a==="c2-answer"){
+   const state=window.OPS_DEBUG?.getState();
+   const request=state?.coordination?.find(x=>x.id===Number(p.id));
+   const target={MOB:"MOB",CAOC:"CAOC",SPACE:"CSpOC",MEDCOM:"MEDCOM",GM:"GM"}[request?.to];
+   return Boolean(request&&target===role);
+ }
+ if(a==="c2-request"){
+   const request={AIRLIFT:"COMMAND",FOS:"CAOC",SPACE:"CAOC",MEDICAL:"MOB",RULES:"COMMAND"}[p.id];
+   return (role==="CAOC"&&request==="CAOC")||(role==="MOB"&&request==="MOB");
+ }
  if(role==="MOB")return ["rfi","initial-rfi","board-next-rfi","task","board-start-task"].includes(a);
  if(role==="CAOC")return ["cargo","plan","dispatch","return","fighter-assign","fighter-launch"].includes(a);
  if(role==="CSpOC")return (a==="support"&&p.id==="space")||a==="board-satellite"||a==="sat-support";
- if(role==="MEDCOM")return a==="support"&&p.id==="medical";
+ if(role==="MEDCOM")return (a==="support"&&p.id==="medical")||["med-board","med-task","med-start","med-triage","med-incident"].includes(a);
  return false;
 }
 function attach(ch,role){
@@ -82,7 +92,7 @@ function broadcast(s){if(!st.host)return;for(const p of st.peers.values())send(p
 function flight(from,to,label){if(!st.host)return;for(const p of st.peers.values())send(p.ch,{kind:"flight",from,to,label})}
 function intercept(a,data){
  if(!st.guest)return false;
- const local=["select-site","select-plane","tab","view","inspect","board-task","board-rfi","board-cargo","board-cards","board-layer","board-zoom","board-reset","board-focus","rules","help","guide","menu","aar","save","sound","invite","close","replay","board-workstation"];
+ const local=["select-site","select-plane","tab","view","inspect","board-task","board-rfi","board-cargo","board-cards","board-layer","board-zoom","board-reset","board-focus","rules","help","guide","menu","aar","save","sound","invite","close","replay","board-workstation","c2-tab","c2-role-open","c2-go","cmd-plane","cmd-site","cmd-priority","cmd-return","cmd-recommend"];
  if(local.includes(a))return false;
  if(!st.connected){status("Not connected to the host. Complete the invitation/answer exchange before submitting operations.");return true}
  const p=st.peers.values().next().value;
