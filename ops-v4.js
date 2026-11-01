@@ -430,7 +430,7 @@ function rulesHTML(){
  ["EVENT / RISK","One Event and one Risk per turn. D4 selects team and another D4 selects FOS. Effects apply on the next turn."],
  ["DEMORALIZATION","Five accumulated Demoralization Points cost one Mission Point. Additional rules cover food/water, welfare and overcrowding."],
  ["VERIFIED VS PRACTICE","Verified: named tasks, some prerequisites, scoring, C-5 and risk dice, card timing. Practice-only: simplified cargo slots, computer decisions, simulated card texts, geographic schematic, turn limit and training scores."]
- ].map(x=>'<div class="rule"><strong>'+x[0]+'</strong><p>'+x[1]+'</p></div>').join("")+'</div>';
+ ].map(x=>'<div class="rule"><strong>'+x[0]+'</strong><p>'+x[1]+'</p></div>').join("")+'<div class="rule"><strong>READ THE SOURCE GUIDES</strong><p><a target="_blank" rel="noopener" href="https://github.com/Lele4u2/OPS-Interactive-Game/blob/main/OPERATION%20PACIFIC%20SHIELD%20User%20Guide%20%28CAO%2030%20Mar%202026%29.pdf">Open the March 2026 OPS User Guide</a></p><p><a target="_blank" rel="noopener" href="https://github.com/Lele4u2/OPS-Interactive-Game/blob/main/OPERATION%20PACIFIC%20SHIELD%20Quickstart%20Guide.pdf">Open OPS Quickstart</a></p></div></div>';
 }
 function modalHTML(){
  if(!modal)return "";
