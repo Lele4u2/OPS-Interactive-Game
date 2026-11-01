@@ -1076,6 +1076,11 @@ function action(e){
  else if(a==="menu"){modal="menu";render()}
  else if(a==="new-game")resetGame();
  else if(a==="save")save(true);
+ else if(a==="c2-tab"){ensureCommand();S.dashboardTab=id;save();render()}
+ else if(a==="c2-go"){if(id==="dashboard"){S.dashboardTab="limfac"}else{tab=id;view=id==="flight"?"map":"board";if(id==="support")S.inspect="MEDCOM"}render()}
+ else if(a==="c2-role-open"){if(id==="COMMAND")document.getElementById("commander-desk")?.scrollIntoView({behavior:"smooth",block:"center"});else if(id==="GM"){tab="events";render()}else if(id==="MOB"){tab="site";S.inspect="MOB";view="board";render()}else if(id==="CAOC"){tab="flight";S.inspect="CAOC";view="board";render()}else{tab="support";S.inspect=id==="SPACE"?"SPACE":"MEDCOM";view="board";render()}}
+ else if(a==="c2-request"){requestCoordination(id)}
+ else if(a==="c2-answer"){resolveCoordination(Number(id),target.dataset.yes==="1")}
  else if(a==="cmd-plane"){ensureCommand();S.command.pickPlane=id;save();render()}
  else if(a==="cmd-site"){ensureCommand();const idx=S.sites.findIndex(x=>x.id===Number(target.dataset.fos));if(idx>=0)setSite(idx)}
  else if(a==="cmd-priority"){ensureCommand();S.command.priority=id;save();render()}
@@ -1099,7 +1104,7 @@ let shouldAutoStart=["tutorial","computer","sandbox"].includes(requested);
 if(shouldAutoStart){start(requested,requested==="computer"?"standard":"cadet");if(requested==="tutorial")tab="map"}
 else{S=null;modal="launch";render()}
 window.OPS_DEBUG={
- getState:()=>S?JSON.parse(JSON.stringify(S)):null,requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render,issueOrder,commandPulse,recommendOrder,
+ getState:()=>S?JSON.parse(JSON.stringify(S)):null,requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render,issueOrder,commandPulse,recommendOrder,assetSummary,missionLimfacs,objectiveStatus,requestCoordination,resolveCoordination,
  applyRemote:state=>{
   if(!state||state.version!==4||!Array.isArray(state.sites)||!Array.isArray(state.fleet))return;
   const previousSite=selected,previousPlane=activePlane;
