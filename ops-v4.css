@@ -101,3 +101,11 @@
 .team-status{background:#153f51;color:#ffe5b0;border:1px solid #8b8d61;border-radius:9px;padding:12px;font-size:12px;margin:12px 0}
 .team-disclaimer{border-left:3px solid #dd9e75;padding:9px;color:#cfdee5;font-size:11px!important}
 @media(max-width:650px){.team-modal{padding:16px}.team-grid{grid-template-columns:1fr}.team-modal h2{font-size:28px}}
+
+
+.board-image-fallback{min-height:420px;padding:60px 20px;text-align:center;line-height:1.7;white-space:normal;color:#ffda9f;background:radial-gradient(#25495e,#092337);font-weight:700}
+.board-med-picker,.board-med-task{background:#112f49e8;border:2px solid #86e5dd;border-radius:8px;color:white;padding:5px 8px;font-size:11px!important;box-shadow:0 0 13px #27bbd14a}
+.board-med-picker.current{border-color:var(--gold);background:#705230e8}
+.board-med-task{padding:0!important;min-width:25px;width:25px;height:25px;border-radius:50%;font-weight:900}
+.board-med-task.complete{background:#1f7256;border-color:#8ef4ae}
+@media(max-width:750px){.board-med-picker{font-size:9px!important;padding:3px!important}.board-med-task{min-width:21px;width:21px;height:21px;font-size:10px!important}}
