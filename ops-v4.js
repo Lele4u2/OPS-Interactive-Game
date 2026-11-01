@@ -512,7 +512,8 @@ function modalHTML(){
 }
 function render(){
  const oldBoard=$("originalBoardScroll");
- if(oldBoard&&S&&!S.boardFocus)S.boardScroll={left:oldBoard.scrollLeft,top:oldBoard.scrollTop};
+ if(oldBoard&&S&&!S.boardFocus&&!S.boardSkipCapture)S.boardScroll={left:oldBoard.scrollLeft,top:oldBoard.scrollTop};
+ if(S)S.boardSkipCapture=false;
  if(!S){root.innerHTML='<div class="boot"><div class="bootmark">OPS <span>/</span> PACIFIC SHIELD</div></div>'+modalHTML();return}
  root.innerHTML=renderHeader()+'<div class="layout">'+renderLeft()+renderCenter()+renderRight()+'</div>'+modalHTML();
  if($("originalBoardScroll"))requestAnimationFrame(()=>{
@@ -549,7 +550,7 @@ function action(e){
  else if(a==="board-cards"){S.boardPick={type:"cards"};tab="events";render()}
  else if(a==="board-layer"){S.boardLayer=id;render()}
  else if(a==="board-zoom"){S.boardZoom=Math.max(1,Math.min(3.2,Math.round(((S.boardZoom||1)+Number(target.dataset.step))*10)/10));render()}
- else if(a==="board-reset"){S.boardZoom=1;S.boardScroll={left:0,top:0};render()}
+ else if(a==="board-reset"){S.boardZoom=1;S.boardScroll={left:0,top:0};S.boardSkipCapture=true;render()}
  else if(a==="board-focus"){S.boardZoom=2;S.boardFocus=true;render()}
  else if(a==="board-workstation"){tab=(id==="SPACE"||id==="MEDCOM")?"support":"flight";render()}
  else if(a==="board-image-tap"){
@@ -568,7 +569,7 @@ function action(e){
    S.boardPick=distance<5.5?{type:"task",i:near}:((sector===0&&x<17)||(sector===1&&x<72&&x>54)||(sector===2&&x>86)||(sector===3&&x>30&&x<47))?{type:"rfi"}:{type:"intro"};
    tab="site";render();
  }
- else if(a==="inspect"){S.inspect=id;S.boardZoom=1;S.boardScroll={left:0,top:0};render()}
+ else if(a==="inspect"){S.inspect=id;S.boardZoom=1;S.boardScroll={left:0,top:0};S.boardSkipCapture=true;render()}
  else if(a==="cargo")changeCargo(id,Number(target.dataset.step));
  else if(a==="plan")createPlan();
  else if(a==="dispatch")dispatch();
