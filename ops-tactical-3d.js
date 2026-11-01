@@ -45,5 +45,6 @@ if(!d)return;for(const f of d.fleet){const loc=typeof f.at==="number"?FOS.find(p
 function refresh(){const d=load();readout(d);routes(d)}
 function open(){if(active)return;active=true;previousFocus=document.activeElement;panel.hidden=false;button.setAttribute("aria-expanded","true");refresh();build3D();routes(load());panel.querySelector("#ops3d-close").focus()}
 function close(){if(!active)return;active=false;panel.hidden=true;button.setAttribute("aria-expanded","false");release();previousFocus?.focus?.()}
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",buildUI);else buildUI();
+function startUI(){buildUI();if(new URLSearchParams(location.search).get("view")==="3d")setTimeout(()=>document.getElementById("ops-3d-launch")?.click(),80)}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",startUI);else startUI();
 })();
