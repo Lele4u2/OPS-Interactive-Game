@@ -160,9 +160,9 @@ function crewMakePlan(order){
  const p=S.fleet.find(x=>x.id===order.aircraft),s=S.sites.find(x=>x.id===order.site);
  if(!p||!s){order.status="HOLD";crewAlert("Invalid aircraft or site in Order "+order.seq);return false}
  if(p.status!=="READY"||p.at!=="MOB")return false;
- if(s.blockedUntil>S.turn||!s.access){order.status="HOLD";crewAlert("Order "+order.seq+" awaiting site access at "+s.name+". Consider rerouting.");return false}
+ if(s.blockedUntil>S.turn||!s.access){order.status="HOLD";if(order.lastAlertTurn!==S.turn){crewAlert("Order "+order.seq+" awaiting site access at "+s.name+". Consider rerouting.");order.lastAlertTurn=S.turn}return false}
  const load=crewLoad(order,p,s),total=cargoWeight(load);
- if(!total){order.status="HOLD";crewAlert("Order "+order.seq+" cannot load "+order.priority+" cargo at MOB. Resupply or change the priority.");return false}
+ if(!total){order.status="HOLD";if(order.lastAlertTurn!==S.turn){crewAlert("Order "+order.seq+" cannot load "+order.priority+" cargo at MOB. Resupply or change the priority.");order.lastAlertTurn=S.turn}return false}
  for(const [key,count] of Object.entries(load))S.stock[key]-=count;
  p.status="PLANNED";p.load={...load};
  const pl={id:"ATO-"+String(S.plans.length+1).padStart(3,"0"),aircraft:p.id,site:s.id,load:{...load},status:"APPROVED",turn:S.turn,simulated:true,orderSeq:order.seq,priority:order.priority};
@@ -247,7 +247,7 @@ function commandPulse(manual=false){
    crewRoutine();
    const pending=c.orders.some(x=>["READY","QUEUED","AIRBORNE","RETURNING"].includes(x.status));
    const arrived=c.orders.some(x=>x.status==="DELIVERED");
-   if(!pending&&!arrived)crewAutoRecommendAndOrder();
+   if(!pending&&!arrived){const hasHeld=c.orders.some(x=>x.status==="HOLD");if(!hasHeld){if(!crewAutoRecommendAndOrder()&&S.turn<12)endTurn()}else{c.autoTurns=false;crewAlert("Mission paused: an order is held awaiting resources or access. Review the alerts and issue a new decision.")}}
    else if(arrived||!c.orders.some(x=>x.status==="READY")){
      if(S.turn<12){endTurn();return true}
    }
@@ -518,10 +518,16 @@ function renderMap(){
  land='<path class="land" d="M565 0 L640 0 674 59 648 98 692 141 680 174 616 157 597 110 553 75Z"/><path class="land" d="M471 198 L502 226 501 276 526 301 501 344 475 316 456 272Z"/><path class="land" d="M165 215 L252 225 295 255 261 291 221 320 176 300Z"/><path class="land" d="M240 360 L364 350 411 391 391 435 311 454 247 415Z"/><path class="land" d="M650 240 L700 276 683 301 664 289Z"/>';
  const routes=S.sites.map(s=>'<path class="ring" d="M'+HOME.x+' '+HOME.y+' L'+s.x+' '+s.y+'"/>').join("");
  const sites=S.sites.map((s,i)=>'<g data-action="select-site" data-index="'+i+'" class="site '+(selected===i?"selected":"")+'" tabindex="0" role="button" aria-label="Select '+s.name+'" transform="translate('+s.x+' '+s.y+')"><circle r="17"/><text text-anchor="middle" dy="5" class="site-number">'+s.id+'</text><text text-anchor="middle" y="-31" class="sitelabel">'+s.name+'</text><text text-anchor="middle" y="34" class="sitetype">'+s.tasks.length+'/16 CAPABLE</text></g>').join("");
+ const orderedRoutes=(S.command?.orders||[]).filter(o=>!["CANCELLED","COMPLETE"].includes(o.status)).slice(-12).map(o=>{
+  const dest=S.sites.find(f=>f.id===o.site);if(!dest)return "";
+  const p=S.fleet.find(f=>f.id===o.aircraft),from=point(p&&p.at!=="MOB"&&p.at!=="LOST"?p.at:"MOB");
+  const x=(from.x+dest.x)/2,y=(from.y+dest.y)/2-30;
+  return '<g class="ordered-flight"><path class="route-order" d="M'+from.x+' '+from.y+' Q'+x+' '+(y-45)+' '+dest.x+' '+dest.y+'"/><text class="route-label" x="'+x+'" y="'+y+'">ORDER '+o.seq+' · '+h(o.aircraft)+' · '+h(o.priority)+'</text></g>';
+ }).join("");
  const targets=SIM_TARGETS.map(t=>'<g class="sim-target '+(S.targetId===t.id?"selected":"")+'" data-action="target-select" data-id="'+t.id+'" tabindex="0" role="button" aria-label="Select fictional training target '+t.name+'" transform="translate('+t.x+' '+t.y+')"><circle r="17"/><path d="M-21 0H21M0 -21V21" stroke-width="2" stroke="#ffce8c"/><text y="34" text-anchor="middle">'+t.id+'</text></g>').join("");
  const blast=S.strikeFx?'<g class="strike-blast" transform="translate('+S.strikeFx.x+' '+S.strikeFx.y+')"><circle class="strike-ring" r="12"/><circle class="strike-core" r="5"/><text y="-26" text-anchor="middle">SIMULATED STRIKE</text></g>':"";
  const fleet=S.fleet.filter(p=>p.status!=="LOST"&&p.status!=="FLYING"&&p.status!=="RETURNING").map((p,i)=>{const pt=point(p.at);const x=pt.x-24+(i%2)*45,y=pt.y+40+Math.floor(i/2)*34;return '<g class="aircraftdot" role="button" tabindex="0" aria-label="Select '+p.name+'" data-action="select-plane" data-plane="'+p.id+'" transform="translate('+x+' '+y+')"><rect rx="8" width="41" height="25"/><text x="20" y="17" text-anchor="middle">✈</text></g>'}).join("");
- return '<div class="mapframe" id="mapframe"><svg viewBox="0 0 900 510" preserveAspectRatio="xMidYMid meet" aria-label="Clickable OPS operational map" role="img"><rect class="mapbg" width="900" height="510"/>'+grid+land+'<circle class="ring" cx="260" cy="290" r="220"/>'+routes+'<g class="mob" data-action="select-mob"><circle cx="'+HOME.x+'" cy="'+HOME.y+'" r="26"/><text x="'+HOME.x+'" y="'+(HOME.y+6)+'" fill="#fff" text-anchor="middle" font-weight="900" font-size="14">MOB</text></g>'+sites+targets+blast+fleet+'<path id="moving-route" class="route" d="" /><g id="moving-plane" transform="translate(-100 -100)" opacity="0" class="flying"><circle r="19" fill="#ffc86e"/><text text-anchor="middle" dy="6" font-size="24" fill="#112633">✈</text></g><text x="20" y="35" font-size="11" fill="#88bbc8" letter-spacing="3">PACIFIC THEATER • TRAINING SCHEMATIC / NOT TO SCALE</text><text x="835" y="489" text-anchor="end" font-size="10" fill="#88bbc8">SELECT SITE OR AIRCRAFT TOKEN</text></svg></div><div class="mapcaption"><div class="maplegend"><span><i class="dot green"></i> MOB</span><span><i class="dot gold"></i> SELECTED FOS</span><span><i class="dot"></i> OTHER FOS</span></div><span class="micro" id="flight-live-label">'+(S.flightFX?h(S.flightFX.label):"CLICK A BOARD TOKEN TO COMMAND IT")+'</span></div>';
+ return '<div class="mapframe" id="mapframe"><svg viewBox="0 0 900 510" preserveAspectRatio="xMidYMid meet" aria-label="Clickable OPS operational map" role="img"><rect class="mapbg" width="900" height="510"/>'+grid+land+'<circle class="ring" cx="260" cy="290" r="220"/>'+routes+'<g class="mob" data-action="select-mob"><circle cx="'+HOME.x+'" cy="'+HOME.y+'" r="26"/><text x="'+HOME.x+'" y="'+(HOME.y+6)+'" fill="#fff" text-anchor="middle" font-weight="900" font-size="14">MOB</text></g>'+orderedRoutes+sites+targets+blast+fleet+'<path id="moving-route" class="route" d="" /><g id="moving-plane" transform="translate(-100 -100)" opacity="0" class="flying"><circle r="19" fill="#ffc86e"/><text text-anchor="middle" dy="6" font-size="24" fill="#112633">✈</text></g><text x="20" y="35" font-size="11" fill="#88bbc8" letter-spacing="3">PACIFIC THEATER • TRAINING SCHEMATIC / NOT TO SCALE</text><text x="835" y="489" text-anchor="end" font-size="10" fill="#88bbc8">SELECT SITE OR AIRCRAFT TOKEN</text></svg></div><div class="mapcaption"><div class="maplegend"><span><i class="dot green"></i> MOB</span><span><i class="dot gold"></i> SELECTED FOS</span><span><i class="dot"></i> OTHER FOS</span></div><span class="micro" id="flight-live-label">'+(S.flightFX?h(S.flightFX.label):"CLICK A BOARD TOKEN TO COMMAND IT")+'</span></div>';
 }
 
 function boardInspector(){
@@ -937,8 +943,8 @@ function action(e){
  else if(a==="cmd-return"){ensureCommand();S.command.returnHome=!S.command.returnHome;save();render()}
  else if(a==="cmd-order"){issueOrder()}
  else if(a==="cmd-cancel"){cancelOrder(Number(target.dataset.sequence))}
- else if(a==="cmd-auto"){ensureCommand();S.command.auto=!S.command.auto;log("Computer crew "+(S.command.auto?"engaged":"paused")+" by commander.","OPS");save();render();if(S.command.auto)queueCommandSoon()}
- else if(a==="cmd-tempo"){ensureCommand();S.command.autoTurns=!S.command.autoTurns;log("Automatic turn progression "+(S.command.autoTurns?"enabled":"disabled")+" by commander.","OPS");save();render()}
+ else if(a==="cmd-auto"){ensureCommand();S.command.auto=!S.command.auto;if(!S.command.auto)S.command.autoTurns=false;log("Computer crew "+(S.command.auto?"engaged":"paused")+" by commander.","OPS");save();render();if(S.command.auto)queueCommandSoon()}
+ else if(a==="cmd-tempo"){ensureCommand();S.command.autoTurns=!S.command.autoTurns;if(S.command.autoTurns)S.command.auto=true;log("Automatic turn progression "+(S.command.autoTurns?"enabled":"disabled")+" by commander.","OPS");save();render();if(S.command.autoTurns)queueCommandSoon()}
  else if(a==="cmd-tick"){commandPulse(true)}
  else if(a==="cmd-recommend"){recommendOrder()}
  else if(a==="invite"){if(window.OPS_COPLAY?.open)window.OPS_COPLAY.open();else notify("Team connection is still loading. Try again.")}
