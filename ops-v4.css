@@ -115,3 +115,38 @@
 .board-satellite small{font-size:9px!important;white-space:normal;max-width:100px}
 .board-satellite.selected{border-color:#ffce83;box-shadow:0 0 0 4px #f7c36a44,0 0 25px #f7c36a88}
 @keyframes satelliteDrift{from{translate:-6px -8px}to{translate:10px 7px}}
+
+
+/* COMMANDER ROLE: a decision-first mission planning cockpit */
+.command-panel{border:1px solid #b38b55;background:linear-gradient(140deg,#17354a,#102c3c 58%,#102434);box-shadow:0 12px 32px #0005,0 0 0 1px #ffe0a322}
+.command-panel>.panel-head{align-items:start}
+.command-panel h2{font-size:38px;letter-spacing:.04em;color:#ffe0a0}
+.command-panel>.panel-head .chip{margin-top:8px}
+.command-panel>p{color:#c9e3eb}
+.command-step{margin:13px 0;padding:12px;background:#0824369c;border:1px solid #315d74;border-radius:10px}
+.command-step>.micro{color:#ffd99e;margin-bottom:8px}
+.command-choices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.command-choices button{min-height:63px;background:#13374a;border:1px solid #496b80;border-radius:8px;padding:8px 7px;font-size:12px;font-weight:800;text-align:left}
+.command-choices button small{display:block;font-size:10px;font-weight:500;color:#b2cedd;line-height:1.35;margin-top:3px;overflow-wrap:anywhere}
+.command-choices button.active,.command-main button.active,.command-status button.active{background:#65502e;border-color:#ffcd78;color:#fff0cb;box-shadow:0 0 0 1px #eabe73b0}
+.command-main{display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.command-main button{min-height:48px}
+.command-main .primary{font-size:14px}
+.command-status{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.command-status>div{display:flex;flex-direction:column;gap:6px;background:#092b3c;border:1px solid #335f70;padding:10px;border-radius:8px}
+.command-status b{font-size:10px;color:#c6e2ed;letter-spacing:.09em}
+.command-status button{font-size:11px;min-height:38px}
+.command-notice{font-size:11px!important;line-height:1.6}
+.command-queue{margin-top:12px;padding:10px;border:1px solid #526d77;border-radius:9px;background:#0a2b39}
+.command-queue>.micro{color:#ffcf7e}
+.command-order{display:flex;align-items:center;justify-content:space-between;gap:9px;border-bottom:1px solid #335260;padding:10px 0}
+.command-order:last-child{border:0}
+.command-order b{font-size:12px}
+.command-order small{display:block;font-size:10px;color:#a9c9d9}
+.command-order button{font-size:10px;padding:6px 9px}
+.command-alert{background:#483424ab;border:1px solid #9f7839;border-radius:8px;padding:10px;margin-top:6px}
+.command-alert b{font-size:10px;color:#ffe1a1}
+.command-alert p{font-size:11px}
+.route-order{fill:none;stroke:#ffce80;stroke-width:3.5;stroke-dasharray:10 7;animation:march 9s linear infinite;filter:drop-shadow(0 0 3px #ff9d5a)}
+.route-label{fill:#ffdcaa;font-size:11px;font-weight:850;paint-order:stroke;stroke:#102c3a;stroke-width:4}
+@media(max-width:740px){.command-panel h2{font-size:28px}.command-choices{grid-template-columns:repeat(2,minmax(0,1fr))}.command-main,.command-status{grid-template-columns:1fr}.command-step{padding:8px}.command-order{flex-wrap:wrap}}
