@@ -806,6 +806,7 @@ function renderC2Dashboard(){
    return '<tr><td><b>'+x.icon+' '+h(x.name)+'</b><small>'+h(v.unit)+'</small></td><td>'+v.mob+'</td><td>'+v.fos+'</td><td>'+v.inFlightOrLoaded+'</td><td><b>'+v.total+'</b></td></tr>';
   }).join("")+'</tbody></table></div>';
   out+='<div class="c2-section-title"><h3>AIRCRAFT FLEET / EXACT LOCATION</h3><span class="micro">Click a plane to command it</span></div><div class="c2-aircraft-grid">'+a.aircraft.map(p=>'<button data-action="select-plane" data-plane="'+p.id+'" class="c2-aircraft"><span>✈</span><div><b>'+h(p.id)+' / '+h(p.name)+'</b><small>'+h(p.status)+' · '+h(String(p.location))+' · LOAD '+p.load+'/'+p.capacity+'</small></div></button>').join("")+'</div>';
+  out+='<div class="c2-section-title"><h3>JOINT SUPPORT ASSETS</h3><span class="micro">Simulated component readiness</span></div><div class="c2-site-grid">'+(S.medicalBoards||[]).map((m,i)=>'<button class="c2-site" data-action="c2-support-med" data-index="'+i+'"><b>✚ '+h(m.name)+'</b><span>'+m.supply+' practice medical supplies</span><small>'+m.tasks.length+'/16 capabilities · '+m.patients.red+' red-priority patients</small></button>').join("")+(S.satellites||[]).map(x=>'<button class="c2-site" data-action="c2-support-sat" data-id="'+x.id+'"><b>🛰 '+h(x.name)+'</b><span>'+h(x.id)+' · '+(x.usedTurn===S.turn?"ALREADY TASKED":"READY FOR TASKING")+'</span><small>Symbolic training satellite, not live orbital telemetry</small></button>').join("")+'</div>';
   out+='<div class="c2-section-title"><h3>STOCK POSITION / EACH FOS</h3></div><div class="c2-site-grid">'+S.sites.map((f,i)=>'<button data-action="select-site" data-index="'+i+'" class="c2-site"><b>'+h(f.name)+'</b><span>👥 '+f.people+' · 🚜 '+f.forklift+' · 🍱 '+f.food+' · ⛽ '+f.fuel+'</span><small>AMMO '+f.ammo+' · MISSILE '+f.missile+' · TASKS '+f.tasks.length+'/16</small></button>').join("")+'</div>';
  }else if(tab==="roles"){
   out+='<p class="c2-advisory">These are role responsibility guides for the OPS practice simulator. Your class instructor and exercise orders remain authoritative for actual assigned duties.</p>';
@@ -1089,6 +1090,8 @@ function action(e){
  else if(a==="save")save(true);
  else if(a==="c2-tab"){ensureCommand();S.dashboardTab=id;save();render()}
  else if(a==="c2-go"){if(id==="dashboard"){S.dashboardTab="limfac"}else{tab=id;view=id==="flight"?"map":"board";if(id==="support")S.inspect="MEDCOM"}render()}
+ else if(a==="c2-support-med"){S.medicalBoard=i;S.inspect="MEDCOM";view="board";tab="support";render()}
+ else if(a==="c2-support-sat"){S.selectedSatellite=id;S.inspect="SPACE";view="board";tab="support";render()}
  else if(a==="c2-role-open"){if(id==="COMMAND")document.getElementById("commander-desk")?.scrollIntoView({behavior:"smooth",block:"center"});else if(id==="GM"){tab="events";render()}else if(id==="MOB"){tab="site";S.inspect="MOB";view="board";render()}else if(id==="CAOC"){tab="flight";S.inspect="CAOC";view="board";render()}else{tab="support";S.inspect=id==="SPACE"?"SPACE":"MEDCOM";view="board";render()}}
  else if(a==="c2-request"){requestCoordination(id)}
  else if(a==="c2-answer"){resolveCoordination(Number(id),target.dataset.yes==="1")}
