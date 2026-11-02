@@ -210,14 +210,14 @@ function runStationAction(action,d){
  if(action==="site"){chooseSite(Number(d.index));renderStationActions(getState());return}
  if(action==="board"){switchBoard(d.id);return}
  if(action==="cargo"){API()?.invoke?.("cargo",{id:d.id,step:d.step});update();return}
- if(action==="plan"||action==="dispatch"||action==="return"){if(!plane)return notify("Choose an aircraft first.");API()?.invoke?.("select-plane",{plane:plane.id,clientPlane:plane.id});API()?.invoke?.(action);update();return}
+ if(action==="plan"||action==="dispatch"||action==="return"){if(!plane)return notify("Choose an aircraft first.");if(before.selectedPlane!==plane.id)API()?.invoke?.("select-plane",{plane:plane.id,clientPlane:plane.id});const prior=getState();API()?.invoke?.(action);const after=getState();const valid=action==="plan"?after?.fleet?.[stationChoice]?.status==="PLANNED":action==="dispatch"?after?.fleet?.[stationChoice]?.status==="FLYING":after?.fleet?.[stationChoice]?.status==="RETURNING";if(!valid&&after?.fleet?.[stationChoice]?.status===prior?.fleet?.[stationChoice]?.status)notify("⚠ POSSIBLE LIMFAC: Mission action did not proceed. Check aircraft status, destination access, prerequisites and inventory.");update();return}
  if(action==="sat"){stationChoice=Number(d.index)||0;openStationMarker("SPACE",stationChoice);return}
  if(action==="sat-support"){const sat=before.satellites?.[stationChoice];if(!sat)return notify("Select satellite");API()?.invoke?.("sat-support",{id:sat.id});update();return}
  if(action==="med-board"){stationChoice=Number(d.index)||0;API()?.invoke?.("med-board",{index:String(stationChoice)});update();return}
  if(action==="med-start"){API()?.invoke?.("med-start",{index:String(d.index)});update();return}
  if(action==="med-triage"){API()?.invoke?.("med-triage");update();return}
  if(action==="med-incident"){if(!confirm("Add a red-priority training patient to MEDCOM? This may create a LIMFAC. Continue?"))return;API()?.invoke?.("med-incident");update();return}
- if(action==="open2d"){close();API()?.invoke?.("inspect",{id:boardType});return}
+ if(action==="open2d"){close();API()?.invoke?.("inspect",{id:boardType==="LOADOUT"?"LOAD":boardType});return}
 }
 function renderStationActions(s){
  const el=q("#ops3d-station-actions");if(!el)return;
@@ -261,7 +261,7 @@ function renderStationActions(s){
 }
 
 function switchBoard(type){
- boardType=BOARD_ASSETS[type]?type:"MOB";
+ const next=BOARD_ASSETS[type]?type:"MOB";if(next!==boardType)stationChoice=0;boardType=next;
  if(overlay)q("#ops3d-board-select").value=boardType;
  if(three){
   three.mobPieces.forEach(x=>x.visible=boardType==="MOB");
