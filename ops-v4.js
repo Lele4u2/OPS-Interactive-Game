@@ -302,14 +302,14 @@ function requestRFI(i){
   s.assessmentAwarded=true;S.mp+=5;S.training+=5;
   log("Full ten-RFI airfield assessment completed: +5 official-rule Mission Points.","SCORE");
  }
- save();render();
+ practiceOutcome();save();render();
 }
 function requestInitial(){
  const s=site();let num=0;
  for(let i=0;i<10&&s.rfis.length<5;i++)if(!s.rfis.includes(i)){s.rfis.push(i);num++}
  if(num){S.flags.rfi=true;log("SIM GM returned "+num+" initial RFI answers to "+s.name,"SIM GM")}else notify("Five initial RFIs already answered. Continue follow-on assessment.");
  if(s.rfis.length===10&&!s.assessmentAwarded){s.assessmentAwarded=true;S.mp+=5}
- save();render();
+ practiceOutcome();save();render();
 }
 function taskPrereq(i){return (R.prerequisites&&R.prerequisites[i])||[]}
 function startTask(i){
@@ -427,7 +427,7 @@ function fighterSortie(){
  S.strikeFx={x:target.x,y:target.y,id:target.id};
  view="map";
  log("Simulated fighter sortie from "+s.name+" to "+target.name+"; "+result+". Target eligibility is NOT linked to the actual EXORD.","SIM GM");
- save();render();
+ practiceOutcome();save();render();
  setTimeout(()=>{if(S&&S.strikeFx?.id===target.id){S.strikeFx=null;render()}},3200);
 }
 function drawCards(){
@@ -449,11 +449,40 @@ function effect(e){
  else if(k==="assessment"){log("Airfield assessment support is available at "+s.name+".","SIM GM")}
  else if(k==="medical"){S.dp+=2;const m=S.medicalBoards?.[S.medicalBoard||0];if(m)m.patients.red++;S.impact.unshift({turn:S.turn,level:"warning",text:"Medical emergency: a red-priority simulated patient was added to MEDCOM. Use the MEDCOM board to establish Triage and treat the patient."});log("Medical surge generated a simulated red-priority patient and 2 practice DP.","SIM OPFOR")}
 }
+
+function practiceChecklist(){
+ const sites=S.sites||[];
+ const assessed=sites.filter(f=>f.rfis?.length===10).length;
+ const staffed=sites.filter(f=>f.people>=5).length;
+ const ready=sites.filter(f=>R.fighterGate.every(i=>f.tasks.includes(i))).length;
+ const sorties=(S.strikes||[]).length;
+ return [
+  {name:"Assess all four airfields (10 RFIs each)",done:assessed,target:4},
+  {name:"Staff at least two forward sites",done:staffed,target:2},
+  {name:"Prepare one fighter-capable site",done:ready,target:1},
+  {name:"Launch one validated practice sortie",done:sorties,target:1},
+  {name:"Reach 25 practice Mission Points",done:Math.max(0,S.mp),target:25}
+ ];
+}
+function practiceOutcome(){
+ if(!S||S.finished)return false;
+ if(!practiceChecklist().every(g=>g.done>=g.target))return false;
+ S.finished=true;S.outcome="WIN";S.phase="ENDEX";if(S.command)S.command.auto=false;
+ log("ENDEX — YOU WIN THE BATTLE! All practice mission objectives met.","SIM GM");
+ modal="endex";beep("good");return true;
+}
+function finishPracticeFailure(){
+ if(!S||S.finished)return;
+ S.finished=true;S.outcome="INCOMPLETE";S.phase="ENDEX";if(S.command)S.command.auto=false;
+ log("ENDEX — MISSION NOT ACCOMPLISHED. Review unfinished practice objectives.","SIM GM");
+ modal="endex";beep("warn");
+}
+
 function endTurn(){
  S.support??={space:0,medical:0,requested:{}};
  if(moving)return notify("Finish the current flight before ending the turn.");
  if(S.finished)return notify("Mission complete. See after-action review.");
- if(!S.events.some(e=>e.turn===S.turn))drawCards();
+ if(!S.events.some(e=>e.turn===S.turn)){S.boardPick={type:"cards"};tab="events";view="board";notify("⚠ EVENT/RISK PENDING: Click the face-down cards before ending this turn.");render();return;}
  S.history.push({turn:S.turn,mp:S.mp,dp:S.dp,training:S.training,opfor:S.opfor,sites:S.sites.map(s=>({name:s.name,crew:s.people,tasks:s.tasks.length,rfis:s.rfis.length})),log:S.log[0]?.msg||""});
  S.turn++;
  const due=S.effects.filter(e=>e.due===S.turn);due.forEach(effect);S.effects=S.effects.filter(e=>e.due>S.turn);
@@ -499,7 +528,8 @@ function endTurn(){
  if(S.support&&S.support.medical>=S.turn&&S.dp>0){const recovered=Math.min(5,S.dp);S.dp-=recovered;log("MEDCOM simulated response prevented "+recovered+" Demoralization Points.","SIM MEDCOM");S.support.medical=0}
  if(S.dp>=5){const deduct=Math.floor(S.dp/5);const already=Math.floor((S.appliedDP||0)/5);const delta=deduct-already;if(delta>0){S.mp-=delta;log("Demoralization adjustment: -"+delta+" MP (1 per 5 accumulated DP).","SCORE")}S.appliedDP=S.dp}
  S.stock.food+=0;S.phase="PLANNING";
- if(S.turn>12){S.finished=true;if(S.command)S.command.auto=false;modal="aar"}
+ if(S.turn>12)finishPracticeFailure();
+ else practiceOutcome();
  if(S.sites.every(x=>x.people===0)&&S.turn>=3)S.impact.unshift({turn:S.turn,level:"warning",text:"No forward operating site is staffed. Deploy a team to start FOS tasks; otherwise the mission cannot develop."});
  if(S.plans.some(x=>x.status==="APPROVED"))S.impact.unshift({turn:S.turn,level:"warning",text:"An approved airlift chalk is still waiting on the ramp. Select the aircraft and click FLY MISSION."});
  S.impact=S.impact.slice(0,32);
@@ -982,7 +1012,10 @@ function rulesHTML(){
 function modalHTML(){
  if(!modal)return "";
  let inner="";
- if(modal==="launch"){
+ if(modal==="endex"){
+  const won=S.outcome==="WIN",goals=practiceChecklist();
+  inner='<div class="micro">OPERATION PACIFIC SHIELD // PRACTICE ENDEX</div><h1 style="font-size:52px;color:'+(won?"#9bf2ca":"#ff9aa9")+'">ENDEX</h1><h2>'+(won?"🏆 YOU WIN THE BATTLE!":"⚠ MISSION NOT ACCOMPLISHED")+'</h2><p>'+(won?"All five practice objectives are complete.":"The 12-turn practice deadline was reached before all objectives were complete.")+'</p><div class="stack">'+goals.map(g=>'<div class="status '+(g.done>=g.target?"success":"warn")+'">'+(g.done>=g.target?"✓":"◯")+' '+h(g.name)+' — '+g.done+'/'+g.target+'</div>').join("")+'</div><p class="micro">TRAINING SIMULATION ONLY. The assessing instructor determines official OPS victory conditions.</p><footer><button data-action="aar">REVIEW YOUR MISSION</button><button data-action="close" class="primary">VIEW FINAL BOARD</button></footer>';
+ }else if(modal==="launch"){
   inner='<div class="micro">OPERATION PACIFIC SHIELD // COMMAND SIMULATION V4</div><h1>CHOOSE YOUR<br><span class="gold">MISSION MODE</span></h1><p>This is an original playable OPS training simulator with a live clickable board, computer decisions, aircraft missions and guided learning. Instructor-specific rules are explicitly identified.</p><div class="choice"><button data-action="start" data-mode="tutorial" data-diff="cadet" class="selected"><b>🎓 GUIDED</b><small>Step-by-step on the board. Learn as you command.</small></button><button data-action="start" data-mode="computer" data-diff="standard"><b>🎮 COMPUTER</b><small>AI pressure, training scenarios and score.</small></button><button data-action="start" data-mode="sandbox" data-diff="cadet"><b>⚙ SANDBOX</b><small>Explore aircraft, support and rules freely.</small></button></div><p class="micro">COMPUTER LEVEL: <select id="difficult" style="background:#17384b;padding:8px;color:white"><option value="cadet">Cadet — forgiving</option><option value="standard" selected>Standard — balanced</option><option value="veteran">Veteran — aggressive</option></select></p><footer><button class="primary" data-action="start" data-mode="tutorial" data-diff="cadet">START TRAINING</button><button data-action="resume">RESUME SAVE</button></footer>';
  }else if(modal==="rules"){inner=rulesHTML()+'<footer><button class="primary" data-action="close">RETURN TO GAME</button></footer>';}
  else if(modal==="aar"){inner=aarHTML()+'<footer><button class="primary" data-action="close">CONTINUE</button></footer>';}
@@ -1118,7 +1151,7 @@ let shouldAutoStart=["tutorial","computer","sandbox"].includes(requested);
 if(shouldAutoStart){start(requested,requested==="computer"?"standard":"cadet");if(requested==="tutorial")tab="map"}
 else{S=null;modal="launch";render()}
 window.OPS_DEBUG={
- getState:()=>S?JSON.parse(JSON.stringify(S)):null,resume:loadSaved,requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render,issueOrder,commandPulse,recommendOrder,assetSummary,missionLimfacs,objectiveStatus,requestCoordination,resolveCoordination,
+ getState:()=>S?JSON.parse(JSON.stringify(S)):null,resume:loadSaved,practiceChecklist,requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render,issueOrder,commandPulse,recommendOrder,assetSummary,missionLimfacs,objectiveStatus,requestCoordination,resolveCoordination,
  applyRemote:state=>{
   if(!state||state.version!==4||!Array.isArray(state.sites)||!Array.isArray(state.fleet))return;
   const previousSite=selected,previousPlane=activePlane;
