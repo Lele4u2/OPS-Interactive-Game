@@ -92,7 +92,7 @@ function flip(raw){
  }
  updateCards();
 }
-function act(action,data,message){try{API()?.invoke?.(action,data);notify(message);update();if(mode!=="event")flip(data.index||0);else flip("0")}catch(e){notify("Action failed: "+e.message)}}
+function act(action,data,message){try{API()?.invoke?.(action,data);notify(message);update();if(mode!=="event"){flip(data.index||0)}else{const state=getState();const draw=state?.events?.find(x=>x.turn===state.turn);if(draw){q("#ops3d-detail").innerHTML="<strong>🎴 CARDS REVEALED — TURN "+draw.turn+"</strong><p><b>EVENT:</b> "+text(draw.event?.name)+" — "+text(draw.event?.body)+"</p><p><b>RISK:</b> "+text(draw.risk?.name)+" — "+text(draw.risk?.body)+"</p><div class=\"warning\">⚠ TEAM "+draw.team+" · "+text(state.sites[draw.fos]?.name)+" · CONSEQUENCES NEXT TURN</div>";}else flip("0")}}catch(e){notify("Action failed: "+e.message)}}
 function updateCards(){
  const box=q("#ops3d-deck");if(!box)return;const s=getState();if(!s)return;
  let count=mode==="rfi"?10:mode==="task"?16:2;const f=s.sites[selected];let html="";
@@ -165,6 +165,7 @@ function draw(now){
  s.fleet.slice(0,4).forEach((p,i)=>{const obj=three.planeGroup[i];if(!obj)return;let x=0,z=0;const at=String(p.at);const ix=s.sites.findIndex(f=>String(f.id)===at);if(ix>=0){x=three.spots[ix][0];z=three.spots[ix][1]}obj.position.x+=(x-obj.position.x)*.035;obj.position.z+=(z-obj.position.z)*.035;obj.position.y=.95+Math.sin(now/550+i)*.05;obj.rotation.y=Math.sin(now/1500+i)*.12});
  three.renderer.render(three.scene,three.camera);
 }
+document.addEventListener("click",e=>{if(overlay&&overlay.style.display!=="none")return;const b=e.target.closest("[data-action]");if(!b)return;const type=b.dataset.action;if(!["board-cards","board-rfi","board-task"].includes(type))return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();if(type==="board-rfi")selected=Math.min(3,Math.max(0,Number(b.dataset.index)||0));mode=type==="board-cards"?"event":type==="board-task"?"task":"rfi";open();update();if(type==="board-task"&&b.dataset.index!==undefined)flip(b.dataset.index);},true);
 setInterval(()=>{if(overlay&&overlay.style.display!=="none")update()},2500);
 if(is3D)window.addEventListener("load",()=>setTimeout(open,230),{once:true});
 window.OPS_3D_TABLE={open,close,chooseSite,update};
