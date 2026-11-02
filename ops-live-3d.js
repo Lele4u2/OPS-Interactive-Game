@@ -67,7 +67,6 @@ function open(){
  q("#ops3d-endturn").onclick=()=>{
    const before=getState();if(!before)return;
    if(!before.events.some(x=>x.turn===before.turn)){mode="event";update();notify("⚠ POSSIBLE LIMFAC: Draw Event and Risk cards before End Turn.");return}
-   if(!confirm("End Turn "+before.turn+"? The GM will review task deadlines, food/water and LIMFAC penalties. Continue?"))return;
    API()?.invoke?.("end-turn");const after=getState();update();
    notify(after?.turn>before.turn?"Turn "+before.turn+" complete. Training Day "+after.turn+" started.":"End Turn blocked. Review mission tasks.");
  };
