@@ -318,7 +318,7 @@ function setupThree(){
    if(lab){lab.geometry.dispose();lab.geometry=new T.PlaneGeometry(1.55,.75);lab.rotation.x=-Math.PI/2;lab.position.set(x,.281,z);lab.userData.stationType=type;lab.userData.stationIndex=index;group.add(lab);pickables.push(lab)}
    stationPieces[type].push(...group.children.slice(start));
  };
- [["C130-A","C130-B","C17-A","C5-A"]].forEach(list=>list[0].forEach((name,i)=>token("CAOC",spots[i][0],spots[i][1],name,i,0x254f75)));
+ ["C130-A","C130-B","C17-A","C5-A"].forEach((name,i)=>token("CAOC",spots[i][0],spots[i][1],name,i,0x254f75));
  ["M1","M2","L1"].forEach((name,i)=>token("SPACE",spots[i][0],spots[i][1],name,i,0x513b82));
  for(let i=0;i<4;i++)token("MEDCOM",spots[i][0],spots[i][1],"MED "+(i+1),i,0x325e5b);
  ["C130-A","C130-B","C17-A","C5-A"].forEach((name,i)=>token("LOADOUT",spots[i][0],spots[i][1],name,i,0x76573a));
