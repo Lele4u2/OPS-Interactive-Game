@@ -26,7 +26,7 @@ const styles = [
 "#ops3d .modes{display:flex;gap:6px;margin:10px 0}#ops3d .modes button.active{background:#4d3178;border-color:#c3a8ff}",
 "#ops3d .deck{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:4px 0 12px}",
 "#ops3d .face{height:104px;border:1px solid #bda7ff!important;border-radius:12px!important;background:linear-gradient(135deg,#3c2b7a,#181d4c)!important;box-shadow:0 6px 0 #08091a,0 10px 22px #0009;display:grid;place-items:center;text-align:center;transition:transform .25s ease}",
-"#ops3d .face:hover{transform:translateY(-4px) rotateY(6deg)}#ops3d .face.known{background:linear-gradient(130deg,#25434c,#172434)!important;border-color:#64d5ed!important}",
+"#ops3d .face:hover{transform:translateY(-4px) rotateY(6deg)}#ops3d .face.known{background:linear-gradient(130deg,#25434c,#172434)!important;border-color:#64d5ed!important;animation:opsCardFlip .65s ease both}@keyframes opsCardFlip{0%{transform:rotateY(90deg) scale(.92);filter:brightness(2)}65%{transform:rotateY(-12deg) scale(1.04)}100%{transform:rotateY(0deg) scale(1)}}",
 "#ops3d .face b{font-size:22px;display:block}#ops3d .face span{font-size:12px}#ops3d .score{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}",
 "#ops3d .score>div{padding:9px;background:#1f2132;border-radius:10px;border:1px solid #393a55}#ops3d .score b{font-size:18px;display:block}",
 "#ops3d .detail{border:1px solid #69608f;padding:13px;border-radius:14px;background:#1e1b33;margin:12px 0;min-height:82px}",
@@ -92,7 +92,7 @@ function flip(raw){
  }
  updateCards();
 }
-function act(action,data,message){try{API()?.invoke?.(action,data);notify(message);update();if(mode!=="event"){flip(data.index||0)}else{const state=getState();const draw=state?.events?.find(x=>x.turn===state.turn);if(draw){q("#ops3d-detail").innerHTML="<strong>🎴 CARDS REVEALED — TURN "+draw.turn+"</strong><p><b>EVENT:</b> "+text(draw.event?.name)+" — "+text(draw.event?.body)+"</p><p><b>RISK:</b> "+text(draw.risk?.name)+" — "+text(draw.risk?.body)+"</p><div class=\"warning\">⚠ TEAM "+draw.team+" · "+text(state.sites[draw.fos]?.name)+" · CONSEQUENCES NEXT TURN</div>";}else flip("0")}}catch(e){notify("Action failed: "+e.message)}}
+function act(action,data,message){try{const before=getState(),n=Number(data.index||0);API()?.invoke?.(action,data);const after=getState();let succeeded=true;if(action==="rfi")succeeded=!!after?.sites?.[selected]?.rfis?.includes(n)&&!before?.sites?.[selected]?.rfis?.includes(n);if(action==="board-start-task")succeeded=!!after?.sites?.[selected]?.pending?.some(p=>p.i===n)&&!before?.sites?.[selected]?.pending?.some(p=>p.i===n);if(action==="cards")succeeded=!!after?.events?.some(x=>x.turn===after.turn)&&!before?.events?.some(x=>x.turn===before.turn);if(!succeeded){notify("⚠ POSSIBLE LIMFAC: Action not approved. Check missing personnel, prerequisites or an existing task. Your mission has not advanced.");return}notify(message);update();if(mode!=="event"){flip(data.index||0)}else{const state=getState();const draw=state?.events?.find(x=>x.turn===state.turn);if(draw){q("#ops3d-detail").innerHTML="<strong>🎴 CARDS REVEALED — TURN "+draw.turn+"</strong><p><b>EVENT:</b> "+text(draw.event?.name)+" — "+text(draw.event?.body)+"</p><p><b>RISK:</b> "+text(draw.risk?.name)+" — "+text(draw.risk?.body)+"</p><div class=\"warning\">⚠ TEAM "+draw.team+" · "+text(state.sites[draw.fos]?.name)+" · CONSEQUENCES NEXT TURN</div>";}else flip("0")}}catch(e){notify("Action failed: "+e.message)}}
 function updateCards(){
  const box=q("#ops3d-deck");if(!box)return;const s=getState();if(!s)return;
  let count=mode==="rfi"?10:mode==="task"?16:2;const f=s.sites[selected];let html="";
@@ -102,7 +102,7 @@ function updateCards(){
   const label=mode==="rfi"?RFIS[i]:mode==="task"?TASKS[i]:i===0?"EVENT CARD":"RISK CARD";
   html+='<button type="button" data-card="'+i+'" class="face '+(known||done?"known":"")+'" aria-label="'+text((known||done)?label:"Reveal facedown card "+(i+1))+'">'+(known||done?'<span> '+(done?"✓ ":"")+"<b>"+(i+1)+"</b>"+text(label)+'</span>':'<span><b>?</b>FLIP CARD '+(i+1)+'</span>')+'</button>';
  }
- box.innerHTML=html;
+ if(box.innerHTML!==html)box.innerHTML=html;
 }
 function update(){
  const s=getState();if(!overlay||!s)return;
@@ -137,11 +137,17 @@ function setupThree(){
  box(0,-.38,0,11,.6,8.1,0x111724,.45);box(0,-.04,0,10.7,.14,7.8,0x292c48,.3);
  const spots=[[-3.35,-2.25],[3.35,-2.25],[-3.35,2.25],[3.35,2.25]];
  const siteMeshes=[],pickables=[];
+ const label3D=(value,color)=>{const board=document.createElement("canvas");board.width=256;board.height=128;const context=board.getContext("2d");if(!context)return null;context.fillStyle=color;context.fillRect(0,0,256,128);context.fillStyle="#f7f2ff";context.font="bold 66px system-ui";context.textAlign="center";context.textBaseline="middle";context.fillText(value,128,64);const tex=new T.CanvasTexture(board);const obj=new T.Mesh(new T.PlaneGeometry(.95,.5),new T.MeshBasicMaterial({map:tex,transparent:false,side:T.DoubleSide}));obj.rotation.x=-Math.PI/2;return obj};
+ const addCard=(x,z,value,kind,site,color)=>{const c=box(x,.54,z,1.05,.14,.64,color,.22);c.userData.cardKind=kind;c.userData.site=site;pickables.push(c);const tag=label3D(value,color);if(tag){tag.position.set(x,.62,z);group.add(tag)}return c};
  spots.forEach((p,i)=>{box(p[0],.08,p[1],3.2,.16,2.4,0x141c34);let base=box(p[0],.24,p[1],2.95,.22,2.05,i===selected?0x235b6f:0x302b52,.5);
  base.userData.site=i;siteMeshes.push(base);pickables.push(base);
  box(p[0],.4,p[1],2.45,.05,.22,0x475d8d);for(let j=0;j<3;j++)box(p[0]-1+j*.8,.5,p[1]-.65,.55,.23,.35,0x8f82c6);
  const tower=box(p[0]+.86,.74,p[1]+.65,.33,.8,.33,0x5be1fa,.3);tower.userData.site=i;pickables.push(tower);
+ addCard(p[0]-.77,p[1]+.27,"RFI","rfi",i,0x3d287d);
+ addCard(p[0]+.77,p[1]+.27,"TASK","task",i,0x145c74);
  });
+ addCard(-.63,.14,"EVENT","event",-1,0x663777);
+ addCard(.63,.14,"RISK","event",-1,0x8a3a59);
  box(0,.1,0,2,.2,1.5,0x34266a,.4);box(0,.3,0,1.25,.3,.9,0xb49fff,.6);
  const planeGroup=[];for(let i=0;i<4;i++){const t=new T.Group();group.add(t);const body=new T.Mesh(new T.ConeGeometry(.13,.62,5),mat(0x5be2f0,.5));body.rotation.x=Math.PI/2; t.add(body);const wing=new T.Mesh(new T.BoxGeometry(.61,.035,.16),mat(0xb8c2e8,.5));t.add(wing);planeGroup.push(t)}
  three={T,scene,camera,renderer,group,spots,siteMeshes,pickables,planeGroup,pick:new T.Raycaster(),ptr:new T.Vector2(),positions:[],width:0,height:0};
@@ -151,7 +157,7 @@ function resize(){if(!three||!canvas||overlay?.style.display==="none")return;con
 function hit(x,y){
  if(!three)return;
  const r=canvas.getBoundingClientRect();three.ptr.set(((x-r.left)/r.width)*2-1,-((y-r.top)/r.height)*2+1);three.pick.setFromCamera(three.ptr,three.camera);
- const hits=three.pick.intersectObjects(three.pickables,false);if(hits.length)chooseSite(hits[0].object.userData.site);
+ const hits=three.pick.intersectObjects(three.pickables,false);if(!hits.length)return;const hit=hits[0].object.userData;if(hit.cardKind){if(hit.site>=0)chooseSite(hit.site);mode=hit.cardKind;revealed.delete(mode+":"+selected+":0");update();if(mode==="event"){const st=getState();if(st?.events?.some(x=>x.turn===st.turn)){flip("0")}else{act("cards",{},"Event and Risk cards revealed; consequences take effect on the following turn.")}}else{const st=getState(),f=st?.sites?.[selected];const limit=mode==="rfi"?10:16;let next=0;for(let j=0;j<limit;j++){if(mode==="rfi"?!f?.rfis?.includes(j):!f?.tasks?.includes(j)&&!f?.pending?.some(t=>t.i===j)){next=j;break}}flip(next)}return}chooseSite(hit.site);
 }
 function draw(now){
  raf=requestAnimationFrame(draw);
