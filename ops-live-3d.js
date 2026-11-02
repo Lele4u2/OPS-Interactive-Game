@@ -13,7 +13,7 @@ const BOARD_ASSETS={
  MEDCOM:{label:"MEDCOM / MEDICAL COMMAND",paths:["MEDCOM MOB x4.png","assets/boards/medcom_board.png"]},
  LOADOUT:{label:"MOB / AIRCRAFT LOADOUT",paths:["Load Planner.png","LOAD Board.png","assets/boards/mob_loadout_board.png","MOB Board X4.png"]}
 };
-let boardType="MOB",boardTicket=0,boardSource="";
+let boardType="MOB",boardTicket=0,boardSource="",stationChoice=0;
 const text = (s) => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let overlay=null, canvas=null, three=null, selected=0, mode="rfi", revealed=new Set(), currentTurn=0, scenes=null, look={yaw:.48,pitch:.93,zoom:14}, targetRot=0, raf=0, bannerTimer=0, mouseDown=null,sceneState=null,lastStateAt=0,announcedOutcome="";
 const styles = [
@@ -80,6 +80,7 @@ function open(){
  q("#ops3d-locations").onclick=e=>{const b=e.target.closest("[data-fos]");if(b)chooseSite(b.dataset.fos)};
  q(".modes").onclick=e=>{const b=e.target.closest("[data-ops-mode]");if(b){mode=b.dataset.opsMode;revealed.clear();update()}};
  q("#ops3d-deck").onclick=e=>{const b=e.target.closest("[data-card]");if(b)flip(b.dataset.card)};
+ q("#ops3d-station-actions").onclick=e=>{const b=e.target.closest("[data-ops3d]");if(b)runStationAction(b.dataset.ops3d,b.dataset)};
  canvas.addEventListener("pointerdown",e=>{mouseDown={x:e.clientX,y:e.clientY,old:look.yaw,pitch:look.pitch};canvas.setPointerCapture(e.pointerId)});
  canvas.addEventListener("pointermove",e=>{if(!mouseDown)return;look.yaw=mouseDown.old+(e.clientX-mouseDown.x)*.008;look.pitch=Math.max(.45,Math.min(1.35,mouseDown.pitch-(e.clientY-mouseDown.y)*.005))});
  canvas.addEventListener("pointerup",e=>{if(!mouseDown)return;const dist=Math.hypot(e.clientX-mouseDown.x,e.clientY-mouseDown.y);mouseDown=null;if(dist<8)hit(e.clientX,e.clientY)});
@@ -190,6 +191,75 @@ function loadBoardTexture(type){
  };
  attempt();
 }
+
+const MED_TASKS=["Blood Support","Battlefield Surgery","Triage Team","Battlefield Hospital","Delayed Bedspace","Medic Response","Minimal Care","Minimal Bedspace","Flight Surgeon","Flight Nurse","Medical Service Corp","Aeromedical Supply","Mortuary Affairs","Mortuary Services","Medical Logistics","War Reserve Material"];
+const CARGO_ITEMS=[["people","5-person MRA team"],["forklift","Forklift"],["fuel","Fuel"],["food","Food / Water"],["ammo","Bomb"],["missile","Missile"]];
+function openStationMarker(type,index){
+ if(type!==boardType)switchBoard(type);
+ stationChoice=Math.max(0,Number(index)||0);
+ const s=getState();if(!s)return;
+ if(type==="CAOC"||type==="LOADOUT"){const aircraft=s.fleet[stationChoice];if(aircraft)API()?.invoke?.("select-plane",{plane:aircraft.id,clientPlane:aircraft.id})}
+ if(type==="SPACE"){const sat=s.satellites?.[stationChoice];if(sat)API()?.invoke?.("board-satellite",{id:sat.id})}
+ if(type==="MEDCOM")API()?.invoke?.("med-board",{index:String(stationChoice)});
+ const after=getState();if(after)renderStationActions(after);
+}
+function runStationAction(action,d){
+ const before=getState();if(!before)return;
+ const plane=before.fleet?.[stationChoice];
+ if(action==="plane"){stationChoice=Number(d.index)||0;openStationMarker(boardType,stationChoice);return}
+ if(action==="site"){chooseSite(Number(d.index));renderStationActions(getState());return}
+ if(action==="board"){switchBoard(d.id);return}
+ if(action==="cargo"){API()?.invoke?.("cargo",{id:d.id,step:d.step});update();return}
+ if(action==="plan"||action==="dispatch"||action==="return"){if(!plane)return notify("Choose an aircraft first.");API()?.invoke?.("select-plane",{plane:plane.id,clientPlane:plane.id});API()?.invoke?.(action);update();return}
+ if(action==="sat"){stationChoice=Number(d.index)||0;openStationMarker("SPACE",stationChoice);return}
+ if(action==="sat-support"){const sat=before.satellites?.[stationChoice];if(!sat)return notify("Select satellite");API()?.invoke?.("sat-support",{id:sat.id});update();return}
+ if(action==="med-board"){stationChoice=Number(d.index)||0;API()?.invoke?.("med-board",{index:String(stationChoice)});update();return}
+ if(action==="med-start"){API()?.invoke?.("med-start",{index:String(d.index)});update();return}
+ if(action==="med-triage"){API()?.invoke?.("med-triage");update();return}
+ if(action==="med-incident"){if(!confirm("Add a red-priority training patient to MEDCOM? This may create a LIMFAC. Continue?"))return;API()?.invoke?.("med-incident");update();return}
+ if(action==="open2d"){close();API()?.invoke?.("inspect",{id:boardType});return}
+}
+function renderStationActions(s){
+ const el=q("#ops3d-station-actions");if(!el)return;
+ let html="";
+ if(boardType==="CAOC"||boardType==="LOADOUT"){
+  const p=s.fleet?.[stationChoice]||s.fleet?.[0];
+  html+='<h3>'+(boardType==="CAOC"?"CAOC / AIR TASKING ORDER":"LOADOUT / MOB INVENTORY")+'</h3>';
+  html+='<div class="station-grid">'+s.fleet.map((a,i)=>'<button data-ops3d="plane" data-index="'+i+'" class="'+(stationChoice===i?"selected":"")+'">✈ '+text(a.id)+'<small> '+text(a.status)+'</small></button>').join("")+'</div>';
+  if(p){
+   html+='<div class="detail"><strong>'+text(p.id)+' — '+text(p.name)+'</strong><p>Status: '+text(p.status)+' · Location: '+text(String(p.at))+'</p></div>';
+   html+='<h3>DESTINATION FOS</h3><div class="station-grid">'+s.sites.map((f,i)=>'<button data-ops3d="site" data-index="'+i+'" class="'+(selected===i?"selected":"")+'">'+text(f.name)+'<small> '+f.people+' people</small></button>').join("")+'</div>';
+   if(boardType==="LOADOUT"){
+    const load=API()?.getLoad?.()||{};
+    html+='<h3>LOAD AIRCRAFT (PRACTICE COUNTERS)</h3>';
+    for(const [key,label] of CARGO_ITEMS){
+     html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 2px;border-bottom:1px solid #41405d"><span>'+text(label)+': <strong>'+Number(load[key]||0)+'</strong></span><div style="display:flex;gap:5px"><button data-ops3d="cargo" data-id="'+key+'" data-step="-1" aria-label="Remove '+text(label)+'">−</button><button data-ops3d="cargo" data-id="'+key+'" data-step="1" aria-label="Add '+text(label)+'">＋</button></div></div>';
+    }
+   }
+   const planReady=p.status==="READY"&&p.at==="MOB",flyReady=p.status==="PLANNED",returnReady=p.status==="AT FOS";
+   html+='<div class="station-actions"><button class="'+(planReady?"selected":"")+'" data-ops3d="plan" '+(!planReady?"disabled":"")+'>1. VALIDATE / SUBMIT PRACTICE FLIGHT PLAN</button><button data-ops3d="dispatch" '+(!flyReady?"disabled":"")+'>2. EXECUTE APPROVED FLIGHT</button><button data-ops3d="return" '+(!returnReady?"disabled":"")+'>3. RETURN AIRCRAFT TO MOB</button></div>';
+  }
+  html+='<p class="foot">Aircraft capacities in this version are practice values, not the official OPS load planner. CAOC validates operational restrictions.</p>';
+ }else if(boardType==="SPACE"){
+  const satellites=s.satellites||[],sat=satellites[stationChoice]||satellites[0];
+  html+='<h3>CSPOC / SPACE SUPPORT</h3><p>Select a satellite and task it for the current turn.</p><div class="station-grid">'+satellites.map((a,i)=>'<button data-ops3d="sat" data-index="'+i+'" class="'+(stationChoice===i?"selected":"")+'">🛰 '+text(a.id)+'<small> '+text(a.name)+'</small></button>').join("")+'</div>';
+  if(sat)html+='<div class="detail"><strong>'+text(sat.name)+'</strong><p>'+(sat.usedTurn===s.turn?"Already tasked this turn.":"Available for support.")+'</p></div><button data-ops3d="sat-support" '+(sat.usedTurn===s.turn?"disabled":"")+'>TASK SELECTED SATELLITE</button>';
+  html+='<p class="foot">Practice support is simulated. Official CSpOC effects must be adjudicated by the instructor.</p>';
+ }else if(boardType==="MEDCOM"){
+  const i=Math.max(0,Math.min(3,s.medicalBoard??stationChoice)),med=s.medicalBoards?.[i];
+  stationChoice=i;
+  html+='<h3>MEDCOM / MEDICAL RESPONSE</h3><div class="station-grid">'+(s.medicalBoards||[]).map((m,j)=>'<button data-ops3d="med-board" data-index="'+j+'" class="'+(i===j?"selected":"")+'">MEDCOM '+(j+1)+'<small> '+m.tasks.length+'/16 tasks</small></button>').join("")+'</div>';
+  if(med){
+   html+='<div class="detail"><strong>MEDCOM '+(i+1)+'</strong><p>Medical supplies: '+med.supply+' · RED '+med.patients.red+' · YELLOW '+med.patients.yellow+' · GREEN '+med.patients.green+'</p></div>';
+   html+='<h3>CLICK A MEDICAL TASK TO START IT</h3><div class="station-grid">'+MED_TASKS.map((name,j)=>'<button data-ops3d="med-start" data-index="'+j+'" '+((med.tasks.includes(j)||med.pending.some(p=>p.i===j))?"disabled":"")+'>'+((med.tasks.includes(j))?"✓ ":med.pending.some(p=>p.i===j)?"⌛ ":"")+(j+1)+'. '+text(name)+'</button>').join("")+'</div>';
+   html+='<button data-ops3d="med-triage">TRIAGE / TREAT PATIENTS</button> <button data-ops3d="med-incident">SIMULATE CASUALTY ARRIVAL</button>';
+  }
+  html+='<p class="foot">Additional medical conditions are training assumptions; consult the printed MEDCOM sheet and instructor.</p>';
+ }
+ html+='<button data-ops3d="open2d" style="margin-top:6px">OPEN FULL 2D WORKSTATION / LOG</button>';
+ el.innerHTML=html;
+}
+
 function switchBoard(type){
  boardType=BOARD_ASSETS[type]?type:"MOB";
  if(overlay)q("#ops3d-board-select").value=boardType;
