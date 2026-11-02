@@ -7,7 +7,7 @@ const rules = window.OPS_RULES || {};
 const RFIS = rules.RFIs || ["Crash Fire Rescue","Mobility Support","Ramp Space","Air Traffic Control","Equipment","Bed Down","Fuel","Airfield Security","Host Nation Support","Medical Capability"];
 const TASKS = rules.tasks || [];
 const text = (s) => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let overlay=null, canvas=null, three=null, selected=0, mode="rfi", revealed=new Set(), currentTurn=0, scenes=null, look={yaw:.48,pitch:.93,zoom:14}, targetRot=0, raf=0, bannerTimer=0, mouseDown=null;
+let overlay=null, canvas=null, three=null, selected=0, mode="rfi", revealed=new Set(), currentTurn=0, scenes=null, look={yaw:.48,pitch:.93,zoom:14}, targetRot=0, raf=0, bannerTimer=0, mouseDown=null,sceneState=null,lastStateAt=0,announcedOutcome="";
 const styles = [
 "#ops3d-open{position:fixed;right:16px;bottom:20px;z-index:900;border:2px solid #ad98ff;background:#281d55;color:white;padding:14px 19px;border-radius:15px;box-shadow:0 0 24px #8c68ff66;font:800 14px system-ui;cursor:pointer}",
 "#ops3d{position:fixed;inset:0;z-index:2000;color:#f5f2ff;background:#080910f6;font:14px/1.45 system-ui;display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden}",
@@ -112,7 +112,8 @@ function updateCards(){
  if(box.innerHTML!==html)box.innerHTML=html;
 }
 function update(){
- const s=getState();if(!overlay||!s)return;
+ const s=getState();if(!overlay||!s)return;sceneState=s;lastStateAt=0;
+ if(s.finished&&s.outcome!==announcedOutcome){announcedOutcome=s.outcome||"INCOMPLETE";q("#ops3d-detail").innerHTML='<h2 style="color:'+(s.outcome==="WIN"?"#9bf2ca":"#ff9aa9")+'">ENDEX — '+(s.outcome==="WIN"?"YOU WIN THE BATTLE!":"MISSION NOT ACCOMPLISHED")+'</h2><p>Review the mission objectives above and your After-Action Review on the main OPS screen.</p>';notify(s.outcome==="WIN"?"🏆 ENDEX — YOU WIN THE BATTLE!":"⚠ ENDEX — MISSION NOT ACCOMPLISHED");}
  if(currentTurn!==s.turn){currentTurn=s.turn;revealed.clear()}
  q("#ops3d-live").textContent="TRAINING DAY / TURN "+s.turn+" • "+s.mode.toUpperCase()+" • "+s.mp+" MP • "+s.dp+" DP";
  const progress=API()?.practiceChecklist?.()||[];const obj=q("#ops3d-objectives");
@@ -171,7 +172,7 @@ function hit(x,y){
 function draw(now){
  raf=requestAnimationFrame(draw);
  if(!overlay||overlay.style.display==="none")return;
- const s=getState();if(!s||!three)return;
+ if(now-lastStateAt>850||!sceneState){sceneState=getState();lastStateAt=now}const s=sceneState;if(!s||!three)return;
  if(three.renderer.domElement.width<1)return;
  resize();
  look.yaw+=0.00013;const radius=look.zoom;
