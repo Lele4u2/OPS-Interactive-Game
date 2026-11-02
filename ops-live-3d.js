@@ -11,7 +11,7 @@ const BOARD_ASSETS={
  CAOC:{label:"CAOC / AIR OPERATIONS",paths:["CAOC Board.png","assets/boards/caoc_board.png"]},
  SPACE:{label:"CSPOC / SPACE SUPPORT",paths:["CSPOC Board.png","assets/boards/cspoc_board.png"]},
  MEDCOM:{label:"MEDCOM / MEDICAL COMMAND",paths:["MEDCOM MOB x4.png","assets/boards/medcom_board.png"]},
- LOADOUT:{label:"MOB / AIRCRAFT LOADOUT",paths:["Load Planner.png","LOAD Board.png","assets/boards/mob_loadout_board.png","MOB Board X4.png"]}
+ LOADOUT:{label:"MOB / AIRCRAFT LOADOUT",paths:["Load Planner.png","LOAD Board.png","assets/boards/mob_loadout_board.png"]}
 };
 let boardType="MOB",boardTicket=0,boardSource="",stationChoice=0;
 const text = (s) => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
