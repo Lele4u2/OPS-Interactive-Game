@@ -347,5 +347,5 @@ function draw(now){
 document.addEventListener("click",e=>{if(overlay&&overlay.style.display!=="none")return;const b=e.target.closest("[data-action]");if(!b)return;const type=b.dataset.action;if(!["board-cards","board-rfi","board-task"].includes(type))return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();if(type==="board-rfi")selected=Math.min(3,Math.max(0,Number(b.dataset.index)||0));mode=type==="board-cards"?"event":type==="board-task"?"task":"rfi";open();update();if(type==="board-task"&&b.dataset.index!==undefined)flip(b.dataset.index);},true);
 setInterval(()=>{if(overlay&&overlay.style.display!=="none")update()},2500);
 if(is3D)window.addEventListener("load",()=>setTimeout(open,230),{once:true});
-window.OPS_3D_TABLE={open,close,chooseSite,update};
+window.OPS_3D_TABLE={open,close,chooseSite,update,switchBoard,selectStation:openStationMarker,getBoardStatus:()=>({type:boardType,source:boardSource,hasTexture:!!three?.boardSurface?.material?.map})};
 })();
