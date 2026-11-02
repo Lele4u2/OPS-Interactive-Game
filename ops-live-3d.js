@@ -332,6 +332,7 @@ function hit(x,y){
  const hits=three.pick.intersectObjects(three.pickables.filter(x=>x.visible),false);if(!hits.length)return;const hit=hits[0].object.userData;if(hit.stationType){openStationMarker(hit.stationType,hit.stationIndex);return}if(hit.cardKind){if(hit.site>=0)chooseSite(hit.site);mode=hit.cardKind;revealed.delete(mode+":"+selected+":0");update();if(mode==="event"){const st=getState();if(st?.events?.some(x=>x.turn===st.turn)){flip("0")}else{act("cards",{},"Event and Risk cards revealed; consequences take effect on the following turn.")}}else{const st=getState(),f=st?.sites?.[selected];const limit=mode==="rfi"?10:16;let next=0;for(let j=0;j<limit;j++){if(mode==="rfi"?!f?.rfis?.includes(j):!f?.tasks?.includes(j)&&!f?.pending?.some(t=>t.i===j)){next=j;break}}flip(next)}return}chooseSite(hit.site);
 }
 function draw(now){
+ now=Number.isFinite(now)?now:performance.now();
  raf=requestAnimationFrame(draw);
  if(!overlay||overlay.style.display==="none")return;
  if(now-lastStateAt>850||!sceneState){sceneState=getState();lastStateAt=now}const s=sceneState;if(!s||!three)return;
