@@ -136,22 +136,22 @@ function setupThree(){
  const box=(x,y,z,w,h,d,color,metal=0)=>{const o=new T.Mesh(new T.BoxGeometry(w,h,d),mat(color,metal));o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;group.add(o);return o};
  box(0,-.38,0,11,.6,8.1,0x111724,.45);box(0,-.04,0,10.7,.14,7.8,0x292c48,.3);
  const spots=[[-3.35,-2.25],[3.35,-2.25],[-3.35,2.25],[3.35,2.25]];
- const siteMeshes=[];
+ const siteMeshes=[],pickables=[];
  spots.forEach((p,i)=>{box(p[0],.08,p[1],3.2,.16,2.4,0x141c34);let base=box(p[0],.24,p[1],2.95,.22,2.05,i===selected?0x235b6f:0x302b52,.5);
- base.userData.site=i;siteMeshes.push(base);
+ base.userData.site=i;siteMeshes.push(base);pickables.push(base);
  box(p[0],.4,p[1],2.45,.05,.22,0x475d8d);for(let j=0;j<3;j++)box(p[0]-1+j*.8,.5,p[1]-.65,.55,.23,.35,0x8f82c6);
- const tower=box(p[0]+.86,.74,p[1]+.65,.33,.8,.33,0x5be1fa,.3);tower.userData.site=i;
+ const tower=box(p[0]+.86,.74,p[1]+.65,.33,.8,.33,0x5be1fa,.3);tower.userData.site=i;pickables.push(tower);
  });
  box(0,.1,0,2,.2,1.5,0x34266a,.4);box(0,.3,0,1.25,.3,.9,0xb49fff,.6);
  const planeGroup=[];for(let i=0;i<4;i++){const t=new T.Group();group.add(t);const body=new T.Mesh(new T.ConeGeometry(.13,.62,5),mat(0x5be2f0,.5));body.rotation.x=Math.PI/2; t.add(body);const wing=new T.Mesh(new T.BoxGeometry(.61,.035,.16),mat(0xb8c2e8,.5));t.add(wing);planeGroup.push(t)}
- three={T,scene,camera,renderer,group,spots,siteMeshes,planeGroup,pick:new T.Raycaster(),ptr:new T.Vector2(),positions:[]};
+ three={T,scene,camera,renderer,group,spots,siteMeshes,pickables,planeGroup,pick:new T.Raycaster(),ptr:new T.Vector2(),positions:[],width:0,height:0};
  resize();
 }
-function resize(){if(!three||!canvas||overlay?.style.display==="none")return;const r=canvas.getBoundingClientRect();if(r.width<2||r.height<2)return;three.renderer.setSize(r.width,r.height,false);three.camera.aspect=r.width/r.height;three.camera.updateProjectionMatrix()}
+function resize(){if(!three||!canvas||overlay?.style.display==="none")return;const r=canvas.getBoundingClientRect();if(r.width<2||r.height<2)return;if(Math.abs(r.width-three.width)<1&&Math.abs(r.height-three.height)<1)return;three.width=r.width;three.height=r.height;three.renderer.setSize(r.width,r.height,false);three.camera.aspect=r.width/r.height;three.camera.updateProjectionMatrix()}
 function hit(x,y){
  if(!three)return;
  const r=canvas.getBoundingClientRect();three.ptr.set(((x-r.left)/r.width)*2-1,-((y-r.top)/r.height)*2+1);three.pick.setFromCamera(three.ptr,three.camera);
- const hits=three.pick.intersectObjects(three.siteMeshes,false);if(hits.length)chooseSite(hits[0].object.userData.site);
+ const hits=three.pick.intersectObjects(three.pickables,false);if(hits.length)chooseSite(hits[0].object.userData.site);
 }
 function draw(now){
  raf=requestAnimationFrame(draw);
