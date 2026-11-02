@@ -338,6 +338,14 @@ function createPlan(){
  if(cargoWeight(cargo)>capacity(p))return notify("You exceeded the practice load capacity.");
  for(const [k,n] of Object.entries(cargo))if(n>S.stock[k])return notify("Insufficient "+k+" at MOB.");
  if(s.blockedUntil>S.turn||!s.access)return notify("Destination is currently restricted.");
+ const potentialLimfacs=[];
+ if((cargo.people||0)>0&&s.food===0&&(cargo.food||0)===0)potentialLimfacs.push("Personnel would arrive without food/water: 10 DP first day, then 30 DP per additional day.");
+ if(!s.forklift&&!(cargo.forklift||0)&&["fuel","food","ammo","missile"].some(k=>(cargo[k]||0)>0))potentialLimfacs.push("Palletized supplies cannot unload without a forklift.");
+ if(potentialLimfacs.length){
+  const message="⚠ POSSIBLE LIMFAC — "+s.name+"\n\n"+potentialLimfacs.join("\n")+"\n\nAre you sure you want to continue with this load?";
+  if(!confirm(message)){notify("MISSION ORDER CANCELLED — correct the LIMFAC and try again.");return;}
+  log("Commander acknowledged potential load-plan LIMFAC: "+potentialLimfacs.join(" "), "MISSION WARNING");
+ }
  if(p.type==="C5"){notify("C-5 at FOS uses the special D20 landing-risk adjudication, shown on arrival.");}
  for(const [k,n] of Object.entries(cargo))S.stock[k]-=n;
  p.status="PLANNED";p.load={...cargo};
@@ -483,6 +491,16 @@ function endTurn(){
  if(moving)return notify("Finish the current flight before ending the turn.");
  if(S.finished)return notify("Mission complete. See after-action review.");
  if(!S.events.some(e=>e.turn===S.turn)){S.boardPick={type:"cards"};tab="events";view="board";notify("⚠ EVENT/RISK PENDING: Click the face-down cards before ending this turn.");render();return;}
+ const dayRisks=S.sites.filter(f=>f.people>0).flatMap(f=>{
+  const warnings=[];
+  if(f.food===0)warnings.push(f.name+": no food/water (DP penalty)");
+  if(!f.tasks.includes(13))warnings.push(f.name+": Task 14 Health and Welfare incomplete");
+  if(f.firstArrival&&S.turn+1-f.firstArrival>=4&&!f.tasks.includes(0))warnings.push(f.name+": Beddown/Sanitation deadline may be missed");
+  return warnings;
+ });
+ if(dayRisks.length&&!S.command?.autoTurns){
+  if(!confirm("⚠ POSSIBLE LIMFAC — END TURN\n\n"+dayRisks.join("\n")+"\n\nAre you sure you want to advance the training day?")){notify("End Turn cancelled. Resolve the LIMFACs before continuing.");return;}
+ }
  S.history.push({turn:S.turn,mp:S.mp,dp:S.dp,training:S.training,opfor:S.opfor,sites:S.sites.map(s=>({name:s.name,crew:s.people,tasks:s.tasks.length,rfis:s.rfis.length})),log:S.log[0]?.msg||""});
  S.turn++;
  const due=S.effects.filter(e=>e.due===S.turn);due.forEach(effect);S.effects=S.effects.filter(e=>e.due>S.turn);
