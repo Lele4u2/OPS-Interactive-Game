@@ -1118,7 +1118,7 @@ let shouldAutoStart=["tutorial","computer","sandbox"].includes(requested);
 if(shouldAutoStart){start(requested,requested==="computer"?"standard":"cadet");if(requested==="tutorial")tab="map"}
 else{S=null;modal="launch";render()}
 window.OPS_DEBUG={
- getState:()=>S?JSON.parse(JSON.stringify(S)):null,requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render,issueOrder,commandPulse,recommendOrder,assetSummary,missionLimfacs,objectiveStatus,requestCoordination,resolveCoordination,
+ getState:()=>S?JSON.parse(JSON.stringify(S)):null,resume:loadSaved,requestRFI,setSite,selectPlane,changeCargo,createPlan,dispatch,returnFlight,endTurn,start,render,issueOrder,commandPulse,recommendOrder,assetSummary,missionLimfacs,objectiveStatus,requestCoordination,resolveCoordination,
  applyRemote:state=>{
   if(!state||state.version!==4||!Array.isArray(state.sites)||!Array.isArray(state.fleet))return;
   const previousSite=selected,previousPlane=activePlane;
