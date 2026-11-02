@@ -118,7 +118,7 @@ function initRenderer(){
  if(three)return;
  const script=document.createElement("script");script.src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js";
  script.onload=()=>{try{if(!window.THREE)throw Error("Three.js unavailable");setupThree();q("#ops3d-renderer").textContent="● REAL 3D ACTIVE · Drag to orbit, click a FOS";}catch(e){fallback(e.message)}};
- script.onerror=()=>fallback("3D library could not load");
+ script.onerror=()=>{const backup=document.createElement("script");backup.src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";backup.onload=script.onload;backup.onerror=()=>fallback("Both 3D library sources are unavailable");document.head.appendChild(backup)};
  document.head.appendChild(script);
 }
 function fallback(msg){
