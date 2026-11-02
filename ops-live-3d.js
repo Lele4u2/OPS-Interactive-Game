@@ -6,6 +6,14 @@ const API = () => window.OPS_DEBUG;
 const rules = window.OPS_RULES || {};
 const RFIS = rules.RFIs || ["Crash Fire Rescue","Mobility Support","Ramp Space","Air Traffic Control","Equipment","Bed Down","Fuel","Airfield Security","Host Nation Support","Medical Capability"];
 const TASKS = rules.tasks || [];
+const BOARD_ASSETS={
+ MOB:{label:"MOB / FOUR AIRFIELDS",paths:["MOB Board X4.png","assets/boards/mob_loadout_board.png"]},
+ CAOC:{label:"CAOC / AIR OPERATIONS",paths:["CAOC Board.png","assets/boards/caoc_board.png"]},
+ SPACE:{label:"CSPOC / SPACE SUPPORT",paths:["CSPOC Board.png","assets/boards/cspoc_board.png"]},
+ MEDCOM:{label:"MEDCOM / MEDICAL COMMAND",paths:["MEDCOM MOB x4.png","assets/boards/medcom_board.png"]},
+ LOADOUT:{label:"MOB / AIRCRAFT LOADOUT",paths:["Load Planner.png","LOAD Board.png","assets/boards/mob_loadout_board.png","MOB Board X4.png"]}
+};
+let boardType="MOB",boardTicket=0,boardSource="";
 const text = (s) => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let overlay=null, canvas=null, three=null, selected=0, mode="rfi", revealed=new Set(), currentTurn=0, scenes=null, look={yaw:.48,pitch:.93,zoom:14}, targetRot=0, raf=0, bannerTimer=0, mouseDown=null,sceneState=null,lastStateAt=0,announcedOutcome="";
 const styles = [
@@ -14,6 +22,8 @@ const styles = [
 "#ops3d *{box-sizing:border-box}#ops3d button{font:inherit;color:inherit;border:1px solid #5a5574;background:#222538;border-radius:10px;padding:9px 12px;cursor:pointer}",
 "#ops3d button:hover{border-color:#b69cff;background:#3a305e}#ops3d button:focus-visible{outline:3px solid #b39cff;outline-offset:2px}",
 "#ops3d .top{padding:12px 18px;border-bottom:1px solid #35314a;background:linear-gradient(90deg,#151522,#28204d);display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}",
+"#ops3d-board-select{background:#211b38;border:2px solid #9483cc;border-radius:9px;color:#fff;padding:9px;font:700 13px system-ui;max-width:230px}#ops3d .board-source{font-size:12px;font-weight:700;color:#c4e2f1;border:1px solid #575078;border-radius:10px;padding:8px;margin:8px 0;background:#26243b}#ops3d .board-source.warn{color:#ffd5a4;border-color:#ba8543;background:#403321}",
+"#ops3d .station-actions{display:grid;gap:8px;margin:10px 0}#ops3d .station-actions button{min-height:41px;text-align:left}#ops3d .station-actions button.selected{background:#49337a;border-color:#c0a1ff}#ops3d .station-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}#ops3d .board-hidden{display:none!important}",
 "#ops3d h2{font-size:19px;margin:0;letter-spacing:.08em}#ops3d h3{font-size:16px;margin:4px 0 10px}#ops3d small{color:#bbb5d8}",
 "#ops3d .stage{min-height:0;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,.8fr)}",
 "#ops3d .view{min-height:0;position:relative;background:radial-gradient(circle at 50% 40%,#20233c,#080a12 73%);overflow:hidden}",
@@ -49,9 +59,11 @@ function open(){
  if(overlay){overlay.style.display="grid";update();return}
  if(!getState()){try{if(localStorage.getItem("OPS_COMMAND_SIM_V4"))API()?.resume?.()}catch(e){}if(!getState()&&API()?.start){API().start("tutorial","cadet")} }
  overlay=document.createElement("div");overlay.id="ops3d";
- overlay.innerHTML='<header class="top"><div><h2>OPERATION PACIFIC SHIELD <span style="color:#bbaaff">/ INTERACTIVE 3D TABLE</span></h2><small>Click an airfield. Flip a facedown RFI or task card. Make the decision on the same screen.</small></div><div style="display:flex;gap:7px"><button id="ops3d-help" type="button">HOW TO PLAY</button><button id="ops3d-endturn" type="button">END TURN →</button><button id="ops3d-close" type="button">RETURN TO 2D ✕</button></div></header><div class="stage"><section class="view"><canvas id="ops3d-canvas" aria-label="3D tabletop with four interactive airfields"></canvas><div class="tools"><button id="ops3d-left">↶</button><button id="ops3d-reset">⌂</button><button id="ops3d-right">↷</button><button id="ops3d-plus">＋</button><button id="ops3d-minus">−</button></div><div class="hint">Drag to rotate · Scroll to zoom · Click an illuminated FOS model to inspect it<br><span id="ops3d-renderer">Loading 3D renderer…</span></div></section><aside class="side"><div id="ops3d-alert" role="alert"></div><div id="ops3d-live" class="live"></div><div class="location" id="ops3d-locations"></div><h3 id="ops3d-site-title">Choose an airfield</h3><div class="score" id="ops3d-score"></div><h3>MISSION OBJECTIVES / ENDEX</h3><div class="obj" id="ops3d-objectives"></div><div class="modes"><button data-ops-mode="rfi" class="active">🎴 RFI CARDS</button><button data-ops-mode="task">🛠 TASK CARDS</button><button data-ops-mode="event">⚠ EVENT / RISK</button></div><div class="deck" id="ops3d-deck"></div><div class="detail" id="ops3d-detail" aria-live="polite">Click a card to turn it over and learn what it is.</div><div class="foot">Practice visualization. Game state, mission scoring and approvals are handled by the existing OPS simulator. Exercise-specific restrictions require instructor verification.</div></aside></div>';
+ overlay.innerHTML='<header class="top"><div><h2>OPERATION PACIFIC SHIELD <span style="color:#bbaaff">/ INTERACTIVE 3D TABLE</span></h2><small>Click an airfield. Flip a facedown RFI or task card. Make the decision on the same screen.</small></div><div style="display:flex;gap:7px"><label style="display:flex;gap:6px;align-items:center">BOARD <select id="ops3d-board-select" aria-label="Select original OPS game board"><option value="MOB">MOB / AIRFIELDS</option><option value="CAOC">CAOC</option><option value="SPACE">CSpOC</option><option value="MEDCOM">MEDCOM</option><option value="LOADOUT">LOADOUT</option></select></label><button id="ops3d-help" type="button">HOW TO PLAY</button><button id="ops3d-endturn" type="button">END TURN →</button><button id="ops3d-close" type="button">RETURN TO 2D ✕</button></div></header><div class="stage"><section class="view"><canvas id="ops3d-canvas" aria-label="3D tabletop with four interactive airfields"></canvas><div class="tools"><button id="ops3d-left">↶</button><button id="ops3d-reset">⌂</button><button id="ops3d-right">↷</button><button id="ops3d-plus">＋</button><button id="ops3d-minus">−</button></div><div class="hint">Drag to rotate · Scroll to zoom · Click an illuminated FOS model to inspect it<br><span id="ops3d-renderer">Loading 3D renderer…</span></div></section><aside class="side"><div id="ops3d-alert" role="alert"></div><div id="ops3d-live" class="live"></div><div id="ops3d-board-status" class="board-source" role="status">Loading original board image…</div><div class="location" id="ops3d-locations"></div><h3 id="ops3d-site-title">Choose an airfield</h3><div class="score" id="ops3d-score"></div><h3>MISSION OBJECTIVES / ENDEX</h3><div class="obj" id="ops3d-objectives"></div><div class="modes"><button data-ops-mode="rfi" class="active">🎴 RFI CARDS</button><button data-ops-mode="task">🛠 TASK CARDS</button><button data-ops-mode="event">⚠ EVENT / RISK</button></div><div class="deck" id="ops3d-deck"></div><div class="station-actions board-hidden" id="ops3d-station-actions"></div><div class="detail" id="ops3d-detail" aria-live="polite">Click a card to turn it over and learn what it is.</div><div class="foot">Practice visualization. Game state, mission scoring and approvals are handled by the existing OPS simulator. Exercise-specific restrictions require instructor verification.</div></aside></div>';
  document.body.appendChild(overlay);canvas=q("#ops3d-canvas");
  q("#ops3d-close").onclick=close;
+ q("#ops3d-board-select").value=boardType;
+ q("#ops3d-board-select").onchange=e=>switchBoard(e.target.value);
  q("#ops3d-endturn").onclick=()=>{
    const before=getState();if(!before)return;
    if(!before.events.some(x=>x.turn===before.turn)){mode="event";update();notify("⚠ POSSIBLE LIMFAC: Draw Event and Risk cards before End Turn.");return}
@@ -59,7 +71,7 @@ function open(){
    API()?.invoke?.("end-turn");const after=getState();update();
    notify(after?.turn>before.turn?"Turn "+before.turn+" complete. Training Day "+after.turn+" started.":"End Turn blocked. Review mission tasks.");
  };
- q("#ops3d-help").onclick=()=>notify("1. Click an airfield model or FOS selector. 2. Choose RFI or Task. 3. Click a facedown card to flip it. 4. Use the action on that card. 5. Return to 2D for aircraft loading and other workstations.");
+ q("#ops3d-help").onclick=()=>notify("1. Choose MOB, CAOC, CSpOC, MEDCOM or LOADOUT. 2. Click physical board tokens or numbered RFI/task cards. 3. Confirm LIMFAC warnings. 4. Finish the Event/Risk draw before End Turn.");
  q("#ops3d-left").onclick=()=>look.yaw-=.22;
  q("#ops3d-right").onclick=()=>look.yaw+=.22;
  q("#ops3d-reset").onclick=()=>{look={yaw:.48,pitch:.93,zoom:14};};
@@ -116,6 +128,8 @@ function update(){
  if(s.finished&&s.outcome!==announcedOutcome){announcedOutcome=s.outcome||"INCOMPLETE";q("#ops3d-detail").innerHTML='<h2 style="color:'+(s.outcome==="WIN"?"#9bf2ca":"#ff9aa9")+'">ENDEX — '+(s.outcome==="WIN"?"YOU WIN THE BATTLE!":"MISSION NOT ACCOMPLISHED")+'</h2><p>Review the mission objectives above and your After-Action Review on the main OPS screen.</p>';notify(s.outcome==="WIN"?"🏆 ENDEX — YOU WIN THE BATTLE!":"⚠ ENDEX — MISSION NOT ACCOMPLISHED");}
  if(currentTurn!==s.turn){currentTurn=s.turn;revealed.clear()}
  q("#ops3d-live").textContent="TRAINING DAY / TURN "+s.turn+" • "+s.mode.toUpperCase()+" • "+s.mp+" MP • "+s.dp+" DP";
+ const isMOB=boardType==="MOB";q("#ops3d-locations").classList.toggle("board-hidden",!isMOB);q("#ops3d-site-title").classList.toggle("board-hidden",!isMOB);q("#ops3d-score").classList.toggle("board-hidden",!isMOB);q("#ops3d-deck").classList.toggle("board-hidden",!isMOB);q(".modes").classList.toggle("board-hidden",!isMOB);q("#ops3d-station-actions").classList.toggle("board-hidden",isMOB);
+ if(!isMOB)renderStationActions(s);
  const progress=API()?.practiceChecklist?.()||[];const obj=q("#ops3d-objectives");
  if(obj)obj.innerHTML=progress.map(g=>'<div class="'+(g.done>=g.target?"done":"")+'">'+(g.done>=g.target?"✓":"◯")+" "+text(g.name)+" — "+g.done+"/"+g.target+"</div>").join("");
  const f=s.sites[selected];q("#ops3d-site-title").textContent=f.name+" / "+f.country+" — SITE "+(selected+1);
@@ -124,6 +138,69 @@ function update(){
  q(".modes").querySelectorAll("[data-ops-mode]").forEach(b=>b.classList.toggle("active",b.dataset.opsMode===mode));
  updateCards();
 }
+
+function statusBoard(label,missing=false){
+ boardSource=label;const element=q("#ops3d-board-status");
+ if(element){element.textContent=label;element.classList.toggle("warn",missing)}
+}
+function boardFallback(T,type){
+ const sheet=document.createElement("canvas");sheet.width=1024;sheet.height=768;
+ const ctx=sheet.getContext("2d");if(!ctx)return null;
+ ctx.fillStyle="#0d1927";ctx.fillRect(0,0,1024,768);
+ ctx.lineWidth=1;ctx.strokeStyle="#375777";
+ for(let x=0;x<=1024;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,768);ctx.stroke()}
+ for(let y=0;y<=768;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1024,y);ctx.stroke()}
+ ctx.strokeStyle="#a78aff";ctx.lineWidth=12;ctx.strokeRect(18,18,988,732);
+ ctx.fillStyle="#f5ecff";ctx.font="bold 62px system-ui";ctx.textAlign="center";
+ ctx.fillText("OPERATION PACIFIC SHIELD",512,290);
+ ctx.fillStyle="#c9aefc";ctx.font="bold 48px system-ui";
+ ctx.fillText((BOARD_ASSETS[type]||BOARD_ASSETS.MOB).label,512,365);
+ ctx.fillStyle="#ffcb98";ctx.font="28px system-ui";ctx.fillText("ORIGINAL IMAGE NOT AVAILABLE",512,438);
+ ctx.fillStyle="#b8d6e8";ctx.font="24px system-ui";ctx.fillText("Training grid — live game controls remain active",512,504);
+ const tex=new T.CanvasTexture(sheet);tex.needsUpdate=true;return tex;
+}
+function applyBoardTexture(tex,type,missing=false,filename=""){
+ if(!three||type!==boardType){tex?.dispose?.();return}
+ const {T,boardSurface}=three;const image=tex.image;
+ const iw=image?.width||1024,ih=image?.height||768,ratio=iw/ih;
+ const maxW=10.65,maxH=7.75;let w=maxW,h=maxW/ratio;
+ if(h>maxH){h=maxH;w=h*ratio}
+ boardSurface.geometry.dispose();boardSurface.geometry=new T.PlaneGeometry(w,h);
+ boardSurface.material.map?.dispose?.();boardSurface.material.map=tex;
+ boardSurface.material.needsUpdate=true;
+ boardSurface.rotation.x=-Math.PI/2;boardSurface.position.y=.058;
+ statusBoard(missing?"⚠ "+(BOARD_ASSETS[type].label)+": source image unavailable. Tactical fallback active.":"✓ Original board image loaded: "+filename,missing);
+}
+function loadBoardTexture(type){
+ boardType=BOARD_ASSETS[type]?type:"MOB";if(!three)return;
+ const ticket=++boardTicket,{T}=three,candidates=BOARD_ASSETS[boardType].paths;
+ statusBoard("Loading "+BOARD_ASSETS[boardType].label+" board image…");
+ const loader=new T.TextureLoader();
+ let idx=0;
+ const attempt=()=>{
+  if(ticket!==boardTicket)return;
+  if(idx>=candidates.length){const tex=boardFallback(T,boardType);if(tex)applyBoardTexture(tex,boardType,true);else statusBoard("⚠ Board image unavailable; training board remains interactive.",true);return}
+  const path=candidates[idx++];
+  loader.load(encodeURI(path),tex=>{
+   if(ticket!==boardTicket){tex.dispose();return}
+   tex.encoding=T.sRGBEncoding||tex.encoding;
+   tex.anisotropy=Math.min(8,three.renderer.capabilities?.getMaxAnisotropy?.()||1);
+   applyBoardTexture(tex,boardType,false,path);
+  },undefined,()=>attempt());
+ };
+ attempt();
+}
+function switchBoard(type){
+ boardType=BOARD_ASSETS[type]?type:"MOB";
+ if(overlay)q("#ops3d-board-select").value=boardType;
+ if(three){
+  three.mobPieces.forEach(x=>x.visible=boardType==="MOB");
+  for(const [key,list] of Object.entries(three.stationPieces)){list.forEach(x=>x.visible=key===boardType)}
+  loadBoardTexture(boardType);
+ }
+ if(overlay){q("#ops3d-detail").innerHTML="<strong>"+text(BOARD_ASSETS[boardType].label)+"</strong><p>Click the tabletop markers or choose a workstation action. OPS rules, card history and ENDEX remain connected to the same saved mission.</p>";update()}
+}
+
 function initRenderer(){
  if(three)return;
  const script=document.createElement("script");script.src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js";
@@ -145,6 +222,8 @@ function setupThree(){
  const group=new T.Group();scene.add(group);
  const box=(x,y,z,w,h,d,color,metal=0)=>{const o=new T.Mesh(new T.BoxGeometry(w,h,d),mat(color,metal));o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;group.add(o);return o};
  box(0,-.38,0,11,.6,8.1,0x111724,.45);box(0,-.04,0,10.7,.14,7.8,0x292c48,.3);
+ const boardSurface=new T.Mesh(new T.PlaneGeometry(10.65,7.75),new T.MeshBasicMaterial({color:0xffffff,side:T.DoubleSide,map:null}));boardSurface.rotation.x=-Math.PI/2;boardSurface.position.y=.058;group.add(boardSurface);
+ const mobLayerStart=group.children.length;
  const spots=[[-3.35,-2.25],[3.35,-2.25],[-3.35,2.25],[3.35,2.25]];
  const siteMeshes=[],pickables=[];
  const label3D=(value,color)=>{const board=document.createElement("canvas");board.width=256;board.height=128;const context=board.getContext("2d");if(!context)return null;context.fillStyle="#"+Number(color).toString(16).padStart(6,"0");context.fillRect(0,0,256,128);context.fillStyle="#f7f2ff";context.font="bold 66px system-ui";context.textAlign="center";context.textBaseline="middle";context.fillText(value,128,64);const tex=new T.CanvasTexture(board);const obj=new T.Mesh(new T.PlaneGeometry(.95,.5),new T.MeshBasicMaterial({map:tex,transparent:false,side:T.DoubleSide}));obj.rotation.x=-Math.PI/2;return obj};
@@ -160,14 +239,28 @@ function setupThree(){
  addCard(.63,.14,"RISK","event",-1,0x8a3a59);
  box(0,.1,0,2,.2,1.5,0x34266a,.4);box(0,.3,0,1.25,.3,.9,0xb49fff,.6);
  const planeGroup=[];for(let i=0;i<4;i++){const t=new T.Group();group.add(t);const body=new T.Mesh(new T.ConeGeometry(.13,.62,5),mat(0x5be2f0,.5));body.rotation.x=Math.PI/2; t.add(body);const wing=new T.Mesh(new T.BoxGeometry(.61,.035,.16),mat(0xb8c2e8,.5));t.add(wing);planeGroup.push(t)}
- three={T,scene,camera,renderer,group,spots,siteMeshes,pickables,planeGroup,pick:new T.Raycaster(),ptr:new T.Vector2(),positions:[],width:0,height:0};
+ const mobPieces=group.children.slice(mobLayerStart),stationPieces={CAOC:[],SPACE:[],MEDCOM:[],LOADOUT:[]};
+ const token=(type,x,z,name,index,color)=>{
+   const start=group.children.length;
+   const base=box(x,.18,z,2,.17,1.35,color,.35);
+   base.userData.stationType=type;base.userData.stationIndex=index;pickables.push(base);
+   const lab=label3D(name,color);
+   if(lab){lab.geometry.dispose();lab.geometry=new T.PlaneGeometry(1.55,.75);lab.rotation.x=-Math.PI/2;lab.position.set(x,.281,z);lab.userData.stationType=type;lab.userData.stationIndex=index;group.add(lab);pickables.push(lab)}
+   stationPieces[type].push(...group.children.slice(start));
+ };
+ [["C130-A","C130-B","C17-A","C5-A"]].forEach(list=>list[0].forEach((name,i)=>token("CAOC",spots[i][0],spots[i][1],name,i,0x254f75)));
+ ["M1","M2","L1"].forEach((name,i)=>token("SPACE",spots[i][0],spots[i][1],name,i,0x513b82));
+ for(let i=0;i<4;i++)token("MEDCOM",spots[i][0],spots[i][1],"MED "+(i+1),i,0x325e5b);
+ ["C130-A","C130-B","C17-A","C5-A"].forEach((name,i)=>token("LOADOUT",spots[i][0],spots[i][1],name,i,0x76573a));
+ three={T,scene,camera,renderer,group,spots,siteMeshes,pickables,planeGroup,mobPieces,stationPieces,boardSurface,pick:new T.Raycaster(),ptr:new T.Vector2(),positions:[],width:0,height:0};
+ switchBoard(boardType);
  resize();
 }
 function resize(){if(!three||!canvas||overlay?.style.display==="none")return;const r=canvas.getBoundingClientRect();if(r.width<2||r.height<2)return;if(Math.abs(r.width-three.width)<1&&Math.abs(r.height-three.height)<1)return;three.width=r.width;three.height=r.height;three.renderer.setSize(r.width,r.height,false);three.camera.aspect=r.width/r.height;three.camera.updateProjectionMatrix()}
 function hit(x,y){
  if(!three)return;
  const r=canvas.getBoundingClientRect();three.ptr.set(((x-r.left)/r.width)*2-1,-((y-r.top)/r.height)*2+1);three.pick.setFromCamera(three.ptr,three.camera);
- const hits=three.pick.intersectObjects(three.pickables,false);if(!hits.length)return;const hit=hits[0].object.userData;if(hit.cardKind){if(hit.site>=0)chooseSite(hit.site);mode=hit.cardKind;revealed.delete(mode+":"+selected+":0");update();if(mode==="event"){const st=getState();if(st?.events?.some(x=>x.turn===st.turn)){flip("0")}else{act("cards",{},"Event and Risk cards revealed; consequences take effect on the following turn.")}}else{const st=getState(),f=st?.sites?.[selected];const limit=mode==="rfi"?10:16;let next=0;for(let j=0;j<limit;j++){if(mode==="rfi"?!f?.rfis?.includes(j):!f?.tasks?.includes(j)&&!f?.pending?.some(t=>t.i===j)){next=j;break}}flip(next)}return}chooseSite(hit.site);
+ const hits=three.pick.intersectObjects(three.pickables.filter(x=>x.visible),false);if(!hits.length)return;const hit=hits[0].object.userData;if(hit.stationType){openStationMarker(hit.stationType,hit.stationIndex);return}if(hit.cardKind){if(hit.site>=0)chooseSite(hit.site);mode=hit.cardKind;revealed.delete(mode+":"+selected+":0");update();if(mode==="event"){const st=getState();if(st?.events?.some(x=>x.turn===st.turn)){flip("0")}else{act("cards",{},"Event and Risk cards revealed; consequences take effect on the following turn.")}}else{const st=getState(),f=st?.sites?.[selected];const limit=mode==="rfi"?10:16;let next=0;for(let j=0;j<limit;j++){if(mode==="rfi"?!f?.rfis?.includes(j):!f?.tasks?.includes(j)&&!f?.pending?.some(t=>t.i===j)){next=j;break}}flip(next)}return}chooseSite(hit.site);
 }
 function draw(now){
  raf=requestAnimationFrame(draw);
