@@ -3,7 +3,7 @@
 ## Files
 - `index.html` – the whole game in ONE file (code + styling inside). Upload this alone to GitHub Pages and it works.
 - `ops.html` – identical copy of `index.html` under the name `ops`.
-- `source/` – the same game split for editing: `index.html` (shell), `style.css` (look), `app.js` (all game logic).
+- `source/` – the same game split for editing: `index.html` (shell), `style.css` (look), `app.js` (board logic), `menu.js` (menu, solo AI, cards, tutorials).
 - `OPS_Game_Guide` – **not included**. The separate full game guide, official OPS User Guide, OPORD, EXORD, FRAGORD, Quickstart, and Excel workbooks are intentionally excluded from this ZIP. Keep instructor-controlled documents outside public repositories.
 
 ## Boards (tabs)
@@ -32,3 +32,11 @@ The official OPS User Guide, OPORD/EXORD/FRAGORD, Quickstart and Excel workbooks
 
 ## Still outside this digital companion
 This is a tracker and playable practice interface, not a reproduction of all physical OPS mechanics. Exact hex map/aircraft movement, actual task staffing and logistics, host-nation permissions, detailed RFI answers, the official Event/Risk decks, instructor adjudications, full CSpOC/MEDCOM mechanics, and network multiplayer are not implemented. A task checkbox records a player's claimed completion; it is not evidence that all official prerequisites were met.
+
+## New features merged from files(1).zip
+- Keeps original repaired single-state game and board tabs, card flips, task/score gates, LIMFAC alerts, and ENDEX.
+- Adds the menu, new-game difficulty, solo computer training, tutorials, role playbook, card-example desk, offline rules coach and settings.
+- Example cards are training injects; optional GM practice effects are scheduled for next turn and are not the printed cards.
+- An optional live class lobby UI is included, but cross-device multiplayer needs an authorized backend. No live backend is included; the local Roles randomizer works offline.
+- The previously fixed Power-before-Beddown rule, load validation, MP/DP accounting and role-name escaping remain enforced.
+- An official OPS target/board adjudication still comes from the assessing instructor; the optional GM MP target in CAOC is for practice.
