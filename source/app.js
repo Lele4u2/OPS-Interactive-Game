@@ -7,7 +7,7 @@ fos:MOBS.map(()=>[0,1,2,3].map(()=>({t:Array(16).fill(0),rfi:0,assessed:0,launch
 sel:MOBS.map(()=>0),med:{G:0,Y:0,R:0,B:0,bed:10,c130:0,c17:0},space:[1,2,3,4,5].map(i=>({z:i,thr:0,neu:0})),load:{ac:"C-17",opt:0,pp:0,px:0},cards:{turn:1,event:null,risk:null},chits:0,resourceChits:[],targetMP:0,endex:null,dpApplied:0});
 let S;try{S=JSON.parse(localStorage.getItem("ops")||"")||fresh()}catch(e){S=fresh()}
 if(!S||!Array.isArray(S.fos)||S.fos.length!==4||!Array.isArray(S.alloc)||S.alloc.length!==4)S=fresh();
-S.cards??={turn:S.turn,event:null,risk:null};S.chits??=0;S.resourceChits??=[];S.targetMP??=0;S.endex??=null;S.dpApplied??=0;
+S.cards??={turn:S.turn,event:null,risk:null};S.chits??=0;S.resourceChits??=[];S.targetMP??=0;S.endex??=null;S.dpApplied??=0;S.practiceEffects??=[];
 const save=()=>{try{localStorage.setItem("ops",JSON.stringify(S))}catch(e){}},L=m=>{S.log.unshift(`D${S.day}/T${S.turn}: ${m}`);S.log=S.log.slice(0,40)};
 const rd=n=>1+Math.floor(Math.random()*n),$=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
