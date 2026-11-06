@@ -48,4 +48,4 @@ return `<div class="c"><h3>1. MOB builds a chalk</h3><div class="r">${[0,1,2,3].
 <div class="m">MOB ${m+1} inventory</div><div class="r tray">${tray}</div>${pk}<div class="r"><button class="on" onclick="submit()">Build Chalk and submit to CAOC</button></div></div>
 <div class="c"><h3>2. CAOC reviews, 3. Flight, 4. Unload</h3>${fl}<div class="m">Approve needs PPR, and a parking ramp for a C-17 or C-5. Press Next turn on the CAOC tab to fly; an aircraft covers its range in hexes each turn (C-130 3, C-17 and C-5 4).</div></div><div class="c"><h3>MOB ${m+1} forward sites: received pieces</h3>${fo}</div>`}
 const _d3=draw;draw=function(){tkInit();if(S.tab=="table"||S.tab=="fops"){renderTop();$("#v").innerHTML=S.tab=="table"?tbl():fops();bindT()}else _d3()};
-if(S.tab=="table"||S.tab=="fops")draw();
+draw();
