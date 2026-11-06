@@ -1,42 +1,27 @@
-# OPS (Operation Pacific Shield) – Complete Package
+# Operation Pacific Shield — merged game update
 
-## Files
-- `index.html` – the whole game in ONE file (code + styling inside). Upload this alone to GitHub Pages and it works.
-- `ops.html` – identical copy of `index.html` under the name `ops`.
-- `source/` – the same game split for editing: `index.html` (shell), `style.css` (look), `app.js` (board logic), `menu.js` (menu, solo AI, cards, tutorials).
-- `OPS_Game_Guide` – **not included**. The separate full game guide, official OPS User Guide, OPORD, EXORD, FRAGORD, Quickstart, and Excel workbooks are intentionally excluded from this ZIP. Keep instructor-controlled documents outside public repositories.
+This keeps the original **OPS** single-file design and the existing mission logic. The 2026-11-05 uploaded package added the real board images and physical-token Flight Ops; previously working features remain in place.
 
-## Boards (tabs)
-All Boards, Roles (randomizer), CAOC, MOB 1-4, Load Planner, MEDCOM, CSpOC.
+## Play the game
 
-## Run it
-Open `index.html` in any browser. No install, no server.
+Open **https://lele4u2.github.io/OPS-Interactive-Game/**.
 
-## Put it on GitHub
-1. New repository. 2. Add `index.html` (drag and drop). 3. Settings > Pages > main branch, root. 4. Visit `https://<user>.github.io/<repo>/`.
+- `index.html` — complete standalone game, including all CSS, JavaScript and seven embedded board images.
+- `ops.html` — exact alternate copy of the homepage game.
+- `source/index.html`, `source/style.css`, `source/app.js`, `source/menu.js`, `source/table.js`, `source/images.js` — editable components of the same game.
 
-## Edit it (code map in `source/app.js`)
-`S` = whole game state (saved in the browser). `fresh()` new game. `caoc() mob(i) load() med() space() ov() roles()` draw each tab. `nextTurn() nextDay()` hold turn rules. `roll()` randomizes jobs. `draw()` re-renders.
+## Boards and features
 
-## Do not publish
-The official OPS User Guide, OPORD/EXORD/FRAGORD, Quickstart and Excel workbooks are "FOR OTS USE ONLY". Keep them out of any public repo; use a private repository if you store them.
+Existing: All Boards, Roles randomizer, CAOC, four MOBs, Load Planner, MEDCOM, CSpOC, theme settings, tutorial, playbook, local saved state, practice difficulty, solo computer opponent, Event/Risk flip cards, LIMFAC warnings, Power-before-Beddown, 10-RFI +5 MP, +5 MP qualifying fighter sorties, DP scoring, and a GM-set practice ENDEX target.
 
-## Repairs in this package
-- Fixed a Chromium startup collision (`top` renamed to `renderTop`).
-- Kept single-file `index.html` and `ops.html` identical; both are generated from the unchanged source layout (`source/index.html`, `source/style.css`, `source/app.js`).
-- Added directly clickable, flipping Event and Risk card markers. Both draws are required before Next Turn; GM decides actual effects.
-- Added flashing possible-LIMFAC warnings for Power/Beddown order, skipped cards and invalid launches; risky fighter launches and next-day welfare penalties request confirmation.
-- Fixed negative load entries, RFI rollback/scoring, and raw-HTML handling in the Roles randomizer.
-- Added logged turn/day completion marks on tasks, +1 MP deduction per five cumulative DP (no duplicate penalties), and a count of earned but unassigned Task 13 resource chits.
-- Added optional GM-set **practice** victory MP target. When achieved, ENDEX shows **YOU WIN THE BATTLE!**; official victory still requires assessing-instructor adjudication.
+New: **Tabletop** has seven original board pictures (CAOC, MOB/FOS, C-130/C-17 and C-5 Loadout boards, MEDCOM base and hospitals, CSpOC) with pan/zoom. **Flight Ops** provides drag/tap counters, aircraft load configurations, visible MOB inventory, flight chalk submission, CAOC PPR/MOG review, route progression by turns, FOS unloading, and forklift or Game Master review when required.
 
-## Still outside this digital companion
-This is a tracker and playable practice interface, not a reproduction of all physical OPS mechanics. Exact hex map/aircraft movement, actual task staffing and logistics, host-nation permissions, detailed RFI answers, the official Event/Risk decks, instructor adjudications, full CSpOC/MEDCOM mechanics, and network multiplayer are not implemented. A task checkbox records a player's claimed completion; it is not evidence that all official prerequisites were met.
+## What is still a practice approximation
 
-## New features merged from files(1).zip
-- Keeps original repaired single-state game and board tabs, card flips, task/score gates, LIMFAC alerts, and ENDEX.
-- Adds the menu, new-game difficulty, solo computer training, tutorials, role playbook, card-example desk, offline rules coach and settings.
-- Example cards are training injects; optional GM practice effects are scheduled for next turn and are not the printed cards.
-- An optional live class lobby UI is included, but cross-device multiplayer needs an authorized backend. No live backend is included; the local Roles randomizer works offline.
-- The previously fixed Power-before-Beddown rule, load validation, MP/DP accounting and role-name escaping remain enforced.
-- An official OPS target/board adjudication still comes from the assessing instructor; the optional GM MP target in CAOC is for practice.
+- Board images can be zoomed and panned, but full clickable hotspots and a true WebGL 3D tabletop are not implemented in this one-file build. The older `opt.html` simulator is preserved separately.
+- The CAOC/MOB flight workflow is a local tabletop practice representation, not the official CAOC ATO worksheet or authoritative instructor adjudication.
+- Sample Event/Risk cards are not the official cards; full MEDCOM/CSpOC rules, detailed task prerequisites, political assessment, and hex-based map movement remain incomplete.
+- The coach/lobby menus came from a provider-specific prototype. They do not provide real online AI coaching or multiplayer synchronization on public GitHub Pages without a supported backend. Saved games are local to each browser.
+- Official OPS victory is set by the assessing instructor. The game uses a **GM-defined practice MP target**; if unset, it must not automatically declare victory.
+
+**Not included or published:** official OPS User Guide, OPORD, EXORD, FRAGORD, quickstart and Excel workbooks. Do not publish restricted exercise material.
