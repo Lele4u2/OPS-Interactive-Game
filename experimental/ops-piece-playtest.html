@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OPS Board Interaction Playtest — Fictional Practice</title>
+<style>
+:root{font:15px system-ui,sans-serif;color:#e9f5fa;background:#07141f}*{box-sizing:border-box}
+body{margin:0}header{padding:18px 22px;background:#12283b;display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;align-items:center;border-bottom:2px solid #2b7390}
+h1{font-size:1.25rem;margin:0}.notice{font-size:.8rem;color:#ffe0a0}.layout{display:grid;grid-template-columns:minmax(320px,2fr) minmax(280px,1fr);gap:14px;padding:16px;max-width:1320px;margin:auto}
+.panel{border:1px solid #3b6b80;border-radius:13px;background:#12283b;padding:14px}h2{font-size:1rem;margin:0 0 12px;color:#8ce5fa}
+.board{min-height:260px;padding:14px;background:repeating-linear-gradient(30deg,#0d2436 0 26px,#102b40 26px 52px);border:1px solid #31566e;border-radius:10px}
+.zones{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.zone{border:2px dashed #4a7185;border-radius:10px;min-height:180px;padding:10px;text-align:center}
+.zone[aria-disabled="false"]{border-color:#68c5dc}.zone.drag-over{background:#214960;border-color:#f4d36a}
+.zone strong{display:block;font-size:.9rem;margin-bottom:5px}.zone small{display:block;color:#b2cbd6;margin-bottom:12px}
+.tokens{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;align-content:flex-start}
+.token{width:68px;height:68px;border-radius:50%;border:3px solid #f4db86;background:radial-gradient(circle at 35% 25%,#387a92,#13374d);color:#fff;font-weight:800;box-shadow:0 4px 10px #0009;cursor:grab;touch-action:none;user-select:none}
+.token:focus{outline:3px solid #8cddff}.token:active{cursor:grabbing;transform:scale(1.06)}
+button,select{font:inherit}button.action,select{background:#1e5168;color:white;padding:9px 11px;border:1px solid #6fadc4;border-radius:8px;margin:4px 3px;cursor:pointer}
+button.action:disabled{opacity:.4;cursor:not-allowed}.action.primary{background:#27697f}
+.status{padding:10px;border:1px solid #496c7e;border-radius:8px;margin:8px 0;color:#b9dce8}
+#log{max-height:240px;overflow:auto;font-size:.84rem;line-height:1.45}#log p{border-bottom:1px solid #345268;padding-bottom:5px}
+#flightPath{display:flex;align-items:center;justify-content:space-around;padding:12px;background:#0b2031;border-radius:8px}
+#airplane{font-size:2rem;transition:transform .65s ease}
+#dice{font-size:2.5rem;text-align:center;padding:10px;min-height:68px}
+footer{padding:14px 20px;color:#a6c3d3;text-align:center}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.zones{grid-template-columns:1fr}.zone{min-height:115px}}
+</style></head><body>
+<header><div><h1>OPS // Interactive Piece Playtest</h1><div class="notice">PUBLIC FICTIONAL DEMO ONLY — not official OPS values or original classroom scenario</div></div><div id="phase"></div></header>
+<div class="layout">
+<main>
+<section class="panel"><h2>Playable counter board</h2>
+<p>Drag a circular counter from MOB to aircraft. After approval and arrival, drag it from aircraft to FOS. Keyboard users: focus a piece, press Enter, then choose a destination.</p>
+<div class="board"><div class="zones">
+<div class="zone" id="MOB" data-zone="MOB"><strong>MOB / AVAILABLE</strong><small>Origin inventory</small><div class="tokens"></div></div>
+<div class="zone" id="AIRCRAFT" data-zone="AIRCRAFT"><strong>C-17 PRACTICE BAY</strong><small>Capacity: 3 counters (fictional)</small><div class="tokens"></div></div>
+<div class="zone" id="FOS" data-zone="FOS"><strong>FOS / ARRIVED</strong><small>Delivery destination</small><div class="tokens"></div></div>
+</div></div>
+<div class="status" id="status"></div>
+<div class="panel" style="margin-top:12px"><h2>Illustrative flight timeline</h2><div id="flightPath"><span>● MOB</span><span id="airplane">✈</span><span>● FOS</span></div>
+<div><button class="action" id="file">File Practice Plan</button><button class="action" id="approve">Approve (Demo CFAC)</button><button class="action primary" id="fly">Execute Flight</button><button class="action" id="reset">Restart</button></div></div>
+</section>
+<section class="panel" style="margin-top:14px"><h2>Task assignment</h2><p>Task 1: Practice setup requires one delivered TEAM and one delivered FUEL counter. These are invented tutorial requirements.</p>
+<button class="action" id="task">Assign Counters and Complete Practice Task</button><div id="taskStatus"></div></section>
+</main>
+<aside>
+<section class="panel"><h2>Mission introduction</h2><p>Fictional exercise: deliver a team and fuel to a training FOS. Obtain simulated approval and complete a practice task. Every counter exists in one location.</p>
+<p id="brief">Mission: move TEAM and FUEL to the FOS without losing inventory accountability.</p>
+<label for="selected">Keyboard piece movement</label><select id="selected"></select><div><button class="action" id="move">Move selected piece</button></div>
+<p id="advisor"></p></section>
+<section class="panel" style="margin-top:14px"><h2>Interactive practice dice</h2><p>D4, D10 and D20 demonstrations. Results are recorded, but do not apply official OPS consequences.</p><select id="die"><option value="4">D4</option><option value="10">D10</option><option value="20">D20</option></select><button class="action" id="roll">Roll</button><div id="dice">◇</div></section>
+<section class="panel" style="margin-top:14px"><h2>Event card / instructor demonstration</h2><button class="action" id="card">Flip Practice Card</button><div id="cardText" class="status">Facedown card ▧</div></section>
+<section class="panel" style="margin-top:14px"><h2>Play-by-play debrief</h2><div id="log"></div><button class="action" id="report">Export Debrief</button></section>
+</aside></div>
+<footer>This is an isolated integration proof for the provided tabletop/theater concepts. It does not replace the main site or implement authorized classroom multiplayer, official hex routing, cards, tasks, or aircraft performance.</footer>
+<script>
+(function(){
+"use strict";
+var key="ops-piece-playtest-v1", kinds=["TEAM","FORKLIFT","FUEL","FOOD"];
+function fresh(){return{phase:"PLANNING",approved:false,flight:"READY",taskDone:false,events:[],items:kinds.map(function(k,i){return{id:"TOK-"+(i+1),kind:k,at:"MOB",assigned:false}})}}
+var S;try{S=JSON.parse(localStorage.getItem(key))||fresh()}catch(e){S=fresh()}
+var picked=null;
+function write(message){S.events.unshift({time:new Date().toISOString(),message:message});S.events=S.events.slice(0,120)}
+function save(){localStorage.setItem(key,JSON.stringify(S));render()}
+function explain(s){document.getElementById("advisor").textContent=s}
+function move(id,target){
+var t=S.items.find(function(x){return x.id===id});if(!t)throw Error("Unknown counter.");
+if(t.assigned)throw Error("Counter assigned to a completed task.");
+if(t.at===target)throw Error("Counter already there.");
+if(target==="AIRCRAFT"&&t.at==="MOB"){
+ if(S.flight!=="READY")throw Error("Cannot change load after filing the flight.");
+ if(S.items.filter(function(x){return x.at==="AIRCRAFT"}).length>=3)throw Error("Fictional practice aircraft is full.");
+ t.at=target;
+}else if(target==="MOB"&&t.at==="AIRCRAFT"&&S.flight==="READY"){t.at=target}
+else if(target==="FOS"&&t.at==="AIRCRAFT"&&S.flight==="LANDED"){
+ if(["FUEL","FOOD"].indexOf(t.kind)>=0&&!S.items.some(function(x){return x.kind==="FORKLIFT"&&(x.at==="FOS"||x.at==="AIRCRAFT")}))throw Error("Practice cargo requires a forklift to unload.");
+ t.at=target;
+}else throw Error("Move not allowed at this stage. Check the flight status.");
+write(id+" moved to "+target);save();
+}
+function action(fn){try{fn()}catch(e){explain("MOVE BLOCKED: "+e.message)}}
+function render(){
+document.getElementById("phase").textContent=S.phase+" / "+S.flight;
+document.getElementById("status").textContent="Flight: "+S.flight+" | Approval: "+(S.approved?"YES":"NO")+" | Onboard: "+S.items.filter(function(x){return x.at==="AIRCRAFT"}).length+"/3";
+["MOB","AIRCRAFT","FOS"].forEach(function(zone){
+ var host=document.querySelector("#"+zone+" .tokens");host.replaceChildren();
+ S.items.filter(function(t){return t.at===zone}).forEach(function(t){
+  var b=document.createElement("button");b.className="token";b.type="button";b.draggable=!t.assigned;b.dataset.id=t.id;b.textContent=t.kind;b.title=t.id+" — "+t.kind+(t.assigned?" / ASSIGNED":"");
+  b.setAttribute("aria-label",b.title);b.addEventListener("dragstart",function(e){e.dataTransfer.setData("text/plain",t.id)});
+  b.addEventListener("click",function(){picked=t.id;document.getElementById("selected").value=t.id;explain("Selected "+t.kind+". Move to aircraft during planning, or FOS after arrival.")});
+  host.appendChild(b);
+ });
+});
+var select=document.getElementById("selected");select.replaceChildren();
+S.items.forEach(function(t){var op=document.createElement("option");op.value=t.id;op.textContent=t.kind+" — "+t.at;select.appendChild(op)});
+if(picked)select.value=picked;
+document.getElementById("file").disabled=S.flight!=="READY";
+document.getElementById("approve").disabled=S.flight!=="FILED";
+document.getElementById("fly").disabled=S.flight!=="APPROVED";
+document.getElementById("task").disabled=S.taskDone||S.flight!=="LANDED";
+document.getElementById("taskStatus").textContent=S.taskDone?"Practice task completed: TEAM and FUEL assigned.":"Not completed.";
+document.getElementById("log").replaceChildren();
+S.events.forEach(function(e){var p=document.createElement("p");p.textContent=e.message;document.getElementById("log").appendChild(p)});
+document.getElementById("airplane").style.transform=S.flight==="LANDED"?"translateX(55px)":"translateX(0px)";
+}
+document.querySelectorAll("[data-zone]").forEach(function(z){
+z.addEventListener("dragover",function(e){e.preventDefault();z.classList.add("drag-over")});
+z.addEventListener("dragleave",function(){z.classList.remove("drag-over")});
+z.addEventListener("drop",function(e){e.preventDefault();z.classList.remove("drag-over");action(function(){move(e.dataTransfer.getData("text/plain"),z.dataset.zone)})})
+});
+document.getElementById("move").onclick=function(){action(function(){
+var t=document.getElementById("selected").value;
+var obj=S.items.find(function(x){return x.id===t});
+if(!obj)throw Error("Select a counter.");
+var target=obj.at==="MOB"?"AIRCRAFT":obj.at==="AIRCRAFT"?(S.flight==="LANDED"?"FOS":"MOB"):"AIRCRAFT";
+move(t,target);
+})};
+document.getElementById("file").onclick=function(){action(function(){if(S.flight!=="READY")throw Error("Already filed.");if(!S.items.some(function(x){return x.at==="AIRCRAFT"}))throw Error("Load counters first.");S.flight="FILED";write("Flight filed; awaiting practice approval.");save()})};
+document.getElementById("approve").onclick=function(){action(function(){if(S.flight!=="FILED")throw Error("No filed flight.");S.approved=true;S.flight="APPROVED";write("Demo CFAC approved flight.");save()})};
+document.getElementById("fly").onclick=function(){action(function(){if(S.flight!=="APPROVED"||!S.approved)throw Error("Flight not approved.");S.flight="LANDED";write("Aircraft reached fictional FOS. Cargo remains aboard until unloaded.");save()})};
+document.getElementById("task").onclick=function(){action(function(){
+if(S.taskDone)throw Error("Already complete.");
+var team=S.items.find(function(x){return x.kind==="TEAM"&&x.at==="FOS"&&!x.assigned});
+var fuel=S.items.find(function(x){return x.kind==="FUEL"&&x.at==="FOS"&&!x.assigned});
+if(!team||!fuel)throw Error("Deliver TEAM and FUEL first.");
+team.assigned=fuel.assigned=true;S.taskDone=true;write("Practice task completed, using "+team.id+" and "+fuel.id+".");save()
+})};
+document.getElementById("roll").onclick=function(){var n=Number(document.getElementById("die").value),a=new Uint32Array(1);crypto.getRandomValues(a);var result=a[0]%n+1;document.getElementById("dice").textContent="D"+n+" → "+result;write("Practice D"+n+" rolled "+result+"; no official game effects.");save()};
+document.getElementById("card").onclick=function(){var cards=["Practice weather update — no gameplay effect","Practice supply notification — no gameplay effect","Practice communications check — no gameplay effect"];var a=new Uint32Array(1);crypto.getRandomValues(a);var c=cards[a[0]%cards.length];document.getElementById("cardText").textContent=c;write("Practice card: "+c);save()};
+document.getElementById("reset").onclick=function(){if(!confirm("Restart practice exercise?"))return;S=fresh();picked=null;write("Practice restarted.");save()};
+document.getElementById("report").onclick=function(){var body=["OPS PIECE PLAYTEST — FICTIONAL DEBRIEF","Flight: "+S.flight,"Task complete: "+S.taskDone,"Resources: "+JSON.stringify(S.items),"History:",...S.events.map(function(e){return e.time+" "+e.message})].join("\n");var a=document.createElement("a"),blob=new Blob([body],{type:"text/plain"}),url=URL.createObjectURL(blob);a.href=url;a.download="ops-practice-debrief.txt";a.click();setTimeout(function(){URL.revokeObjectURL(url)},500)};
+render();
+})();
+</script></body></html>
